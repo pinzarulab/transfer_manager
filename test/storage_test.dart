@@ -42,4 +42,37 @@ void main() {
     expect(restored.bytesTransferred, 12);
     expect(restored.request.authScope, 'account-42');
   });
+
+  test('JSON storage round trips a TUS request and session metadata', () async {
+    final directory = await Directory.systemTemp.createTemp('transfer-tus-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/tasks.json');
+    final storage = JsonFileTransferStorage(file);
+    await storage.initialize();
+    await storage.save(
+      TransferRecord(
+        id: 'tus-one',
+        request: TusUploadRequest(
+          sourcePath: '${directory.path}/video.mp4',
+          endpoint: Uri.parse('https://uploads.example.com/files'),
+          chunkSize: 1024,
+          metadata: const {'kind': 'video'},
+        ),
+        state: TransferState.paused,
+        protocolMetadata: const {
+          'tus.sessionUrl': 'https://uploads.example.com/files/42',
+          'tus.offset': 2048,
+        },
+      ),
+    );
+
+    final reopened = JsonFileTransferStorage(file);
+    await reopened.initialize();
+    final record = (await reopened.loadAll()).single;
+    final request = record.request as TusUploadRequest;
+
+    expect(request.chunkSize, 1024);
+    expect(request.metadata, {'kind': 'video'});
+    expect(record.protocolMetadata['tus.offset'], 2048);
+  });
 }

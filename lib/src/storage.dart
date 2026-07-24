@@ -128,6 +128,7 @@ Map<String, Object?> _requestToJson(TransferRequest request) {
     );
   final common = <String, Object?>{
     'type': request.type.name,
+    'protocol': request.protocol,
     'headers': safeHeaders,
     'authScope': request.authScope,
     'groupId': request.groupId,
@@ -144,6 +145,14 @@ Map<String, Object?> _requestToJson(TransferRequest request) {
       'destination': request.destination.toString(),
       'method': request.method,
       'fieldName': request.fieldName,
+      'sourcePolicy': request.sourcePolicy.name,
+    },
+    TusUploadRequest() => {
+      ...common,
+      'sourcePath': request.sourcePath,
+      'endpoint': request.endpoint.toString(),
+      'chunkSize': request.chunkSize,
+      'metadata': request.metadata,
       'sourcePolicy': request.sourcePolicy.name,
     },
     DownloadRequest() => {
@@ -172,6 +181,31 @@ TransferRequest _requestFromJson(Map<String, Object?> json) {
   final network = networkName == null
       ? null
       : NetworkPolicy.values.byName(networkName);
+  if (json['protocol'] == 'tus-1.0') {
+    return TusUploadRequest(
+      sourcePath: json['sourcePath']! as String,
+      endpoint: Uri.parse(json['endpoint']! as String),
+      chunkSize: json['chunkSize']! as int,
+      metadata:
+          (json['metadata'] as Map<String, Object?>?)?.map(
+            (key, value) => MapEntry(key, value! as String),
+          ) ??
+          const {},
+      sourcePolicy: UploadSourcePolicy.values.byName(
+        json['sourcePolicy']! as String,
+      ),
+      headers: headers,
+      authScope: json['authScope'] as String?,
+      groupId: json['groupId'] as String?,
+      priority: priority,
+      networkPolicy: network,
+      notification: notificationJson == null
+          ? null
+          : TransferNotification.fromJson(notificationJson),
+      checksum: checksum,
+      expectedChecksum: json['expectedChecksum'] as String?,
+    );
+  }
   if (json['type'] == TransferType.upload.name) {
     return UploadRequest(
       sourcePath: json['sourcePath']! as String,

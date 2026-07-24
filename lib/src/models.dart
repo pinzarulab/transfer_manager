@@ -176,6 +176,45 @@ final class UploadRequest extends TransferRequest {
   String get protocol => 'http-multipart';
 }
 
+/// A resumable upload using version 1.0 of the TUS protocol.
+///
+/// The server-created upload URL and acknowledged offset are persisted in the
+/// task's protocol metadata. Retries and restored tasks reconcile the offset
+/// with the server before sending another chunk.
+final class TusUploadRequest extends TransferRequest {
+  const TusUploadRequest({
+    required this.sourcePath,
+    required this.endpoint,
+    this.chunkSize = 5 * 1024 * 1024,
+    this.metadata = const {},
+    this.sourcePolicy = UploadSourcePolicy.reference,
+    super.headers,
+    super.authScope,
+    super.groupId,
+    super.priority,
+    super.retryPolicy,
+    super.networkPolicy,
+    super.notification,
+    super.checksum,
+    super.expectedChecksum,
+  }) : assert(chunkSize > 0);
+
+  final String sourcePath;
+  final Uri endpoint;
+  final int chunkSize;
+
+  /// Values are encoded as Base64 when sent in `Upload-Metadata`.
+  final Map<String, String> metadata;
+  final UploadSourcePolicy sourcePolicy;
+
+  @override
+  TransferType get type => TransferType.upload;
+  @override
+  Uri get remoteUri => endpoint;
+  @override
+  String get protocol => 'tus-1.0';
+}
+
 final class DownloadRequest extends TransferRequest {
   const DownloadRequest({
     required this.source,

@@ -5,14 +5,15 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository currently contains the **0.1 foreground core**. It does not
+This repository currently contains the **0.2 foreground core**. It does not
 claim native background execution: Android WorkManager/foreground service,
-iOS background URLSession, notifications, TUS, S3 multipart, and Flutter
+iOS background URLSession, notifications, S3 multipart, and Flutter
 widgets belong in federated packages built on the contracts exposed here.
 
 ## What works
 
 - Streamed HTTP multipart uploads
+- TUS 1.0 uploads with persisted sessions and resumable chunks
 - HTTP downloads with `.part` files, `Range` and `If-Range`
 - Pause, resume, cancel, manual retry, and exponential automatic retry
 - Global, upload/download, and per-host concurrency limits
@@ -52,6 +53,22 @@ Future<void> main() async {
 }
 ```
 
+For a resumable upload, point `TusUploadRequest` at the server's TUS creation
+endpoint. The engine records the returned upload URL and reconciles
+`Upload-Offset` before resuming:
+
+```dart
+final task = await manager.enqueue(
+  TusUploadRequest(
+    sourcePath: 'videos/large.mp4',
+    endpoint: Uri.parse('https://uploads.example.com/files'),
+    chunkSize: 8 * 1024 * 1024,
+    metadata: const {'contentType': 'video/mp4'},
+    authScope: 'current-user',
+  ),
+);
+```
+
 Use `authScope` to persist an opaque credential lookup key. Do not put
 short-lived credentials in request headers. A `TransferAuthProvider` is asked
 for fresh headers immediately before execution and again after a 401.
@@ -75,4 +92,3 @@ network/charging constraints, and notifications, then report only the
 capabilities actually supported on that platform.
 
 See [ROADMAP.md](ROADMAP.md) for the staged path to the full federated plugin.
-

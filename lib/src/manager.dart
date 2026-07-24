@@ -18,7 +18,7 @@ final class TransferManager {
        authProvider = authProvider == null
            ? null
            : SingleFlightAuthProvider(authProvider),
-       _engines = engines ?? [HttpTransferEngine()];
+       _engines = engines ?? [TusTransferEngine(), HttpTransferEngine()];
 
   final TransferStorage storage;
   final TransferAuthProvider? authProvider;
@@ -133,6 +133,7 @@ final class TransferManager {
     }
     for (final engine in _engines) {
       if (engine is HttpTransferEngine) engine.close();
+      if (engine is TusTransferEngine) engine.close();
     }
     await storage.close();
     for (final task in _tasks.values) {

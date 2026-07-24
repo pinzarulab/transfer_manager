@@ -1,11 +1,17 @@
 # Roadmap
 
-## 0.1 — foreground core (this repository)
+## 0.1 — foreground core
 
 - Unified task and state model
 - Persistent queue and restart restoration
 - HTTP range downloads and multipart uploads
 - Retry, auth refresh, checksum verification, progress and ETA
+
+## 0.2 — resumable upload protocol (this repository)
+
+- TUS 1.0 creation and chunk upload
+- Persisted session URL and offset reconciliation
+- Chunk retry without restarting the file
 
 ## 0.5 — Android durability
 
@@ -18,7 +24,6 @@
 
 - iOS background URLSession and relaunch reconciliation
 - Android/iOS capability adapters
-- TUS resumable uploads
 - SQLite migrations and retention policies
 - Optional Flutter widget package
 
@@ -30,4 +35,3 @@
 The 1.0 acceptance bar includes multi-gigabyte streaming, atomic completion,
 restart and connectivity recovery, token renewal, chunk-level retry where the
 protocol supports it, corruption detection, and zero persisted auth secrets.
-
