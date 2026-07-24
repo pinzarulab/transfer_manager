@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 import 'dart:math';
 
 import 'auth.dart';
@@ -59,7 +60,15 @@ final class TransferManager {
     _ensureUsable();
     final id =
         '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}-${(_idCounter++).toRadixString(36)}';
-    final record = TransferRecord(id: id, request: request);
+    final prepared = await _prepareRequest(id, request);
+    final record = TransferRecord(
+      id: id,
+      request: prepared.request,
+      protocolMetadata: {
+        if (prepared.managedPath != null)
+          'managedSourcePath': prepared.managedPath,
+      },
+    );
     _records[id] = record;
     final task = TransferTask._(this, id);
     _tasks[id] = task;
@@ -111,6 +120,7 @@ final class TransferManager {
       _controls[id]?.cancel();
     } else {
       _controls[id]?.cancel();
+      await _cleanupManagedSource(record, cancelled: true);
       await _transition(record, TransferState.cancelled);
     }
   }
@@ -247,8 +257,10 @@ final class TransferManager {
         ),
       );
       await _transition(record, TransferState.verifying);
+      await _cleanupManagedSource(record);
       await _transition(record, TransferState.completed);
     } on TransferCancelledException {
+      await _cleanupManagedSource(record, cancelled: true);
       await _transition(record, TransferState.cancelled);
     } catch (error) {
       if (isTransferPausedSignal(error)) {
@@ -286,6 +298,97 @@ final class TransferManager {
   Future<void> _fail(TransferRecord record, Object error) async {
     record.error = error;
     await _transition(record, TransferState.failed);
+  }
+
+  Future<({TransferRequest request, String? managedPath})> _prepareRequest(
+    String id,
+    TransferRequest request,
+  ) async {
+    final sourcePath = switch (request) {
+      UploadRequest() => request.sourcePath,
+      TusUploadRequest() => request.sourcePath,
+      DownloadRequest() => null,
+    };
+    final sourcePolicy = switch (request) {
+      UploadRequest() => request.sourcePolicy,
+      TusUploadRequest() => request.sourcePolicy,
+      DownloadRequest() => UploadSourcePolicy.reference,
+    };
+    if (sourcePath == null ||
+        sourcePolicy != UploadSourcePolicy.copyToManagedStorage) {
+      return (request: request, managedPath: null);
+    }
+    final rootPath = configuration.managedStoragePath;
+    if (rootPath == null || rootPath.trim().isEmpty) {
+      throw StateError(
+        'managedStoragePath is required for copyToManagedStorage',
+      );
+    }
+    final source = File(sourcePath);
+    if (!await source.exists()) {
+      throw TransferSourceMissingException(
+        'Upload source does not exist: ${source.path}',
+      );
+    }
+    final separator = Platform.pathSeparator;
+    final root = Directory(rootPath).absolute;
+    final taskDirectory = Directory('${root.path}$separator$id');
+    await taskDirectory.create(recursive: true);
+    final fileName = Uri.file(source.absolute.path).pathSegments.last;
+    final managedPath = '${taskDirectory.path}$separator$fileName';
+    final temporary = File('$managedPath.part');
+    try {
+      await source.copy(temporary.path);
+      await temporary.rename(managedPath);
+    } catch (_) {
+      if (await temporary.exists()) await temporary.delete();
+      rethrow;
+    }
+    final prepared = switch (request) {
+      UploadRequest() => request.withSourcePath(managedPath),
+      TusUploadRequest() => request.withSourcePath(managedPath),
+      DownloadRequest() => request,
+    };
+    return (request: prepared, managedPath: managedPath);
+  }
+
+  Future<void> _cleanupManagedSource(
+    TransferRecord record, {
+    bool cancelled = false,
+  }) async {
+    final shouldRemove = cancelled
+        ? configuration.removeManagedSourceOnCancellation
+        : configuration.removeManagedSourceOnCompletion;
+    if (!shouldRemove) return;
+    final managedPath = record.protocolMetadata['managedSourcePath'] as String?;
+    final rootPath = configuration.managedStoragePath;
+    if (managedPath == null || rootPath == null) return;
+
+    final separator = Platform.pathSeparator;
+    final taskDirectory = Directory(
+      '${Directory(rootPath).absolute.path}$separator${record.id}',
+    );
+    final candidate = File(managedPath).absolute;
+    final safePrefix = '${taskDirectory.path}$separator';
+    if (!candidate.path.startsWith(safePrefix)) {
+      record.protocolMetadata['managedSourceCleanupError'] =
+          'Path failed managed-directory validation';
+      await storage.save(record);
+      return;
+    }
+    try {
+      if (await candidate.exists()) await candidate.delete();
+      if (await taskDirectory.exists() && await taskDirectory.list().isEmpty) {
+        await taskDirectory.delete();
+      }
+      record.protocolMetadata['managedSourceCleaned'] = true;
+      record.protocolMetadata.remove('managedSourceCleanupError');
+      await storage.save(record);
+    } catch (error) {
+      record.protocolMetadata['managedSourceCleanupError'] = error.runtimeType
+          .toString();
+      await storage.save(record);
+    }
   }
 
   Future<void> _transition(TransferRecord record, TransferState next) async {

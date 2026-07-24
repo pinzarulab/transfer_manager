@@ -5,7 +5,7 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository currently contains the **0.2 foreground core**. It does not
+This repository currently contains the **0.3 foreground core**. It does not
 claim native background execution: Android WorkManager/foreground service,
 iOS background URLSession, notifications, S3 multipart, and Flutter
 widgets belong in federated packages built on the contracts exposed here.
@@ -23,6 +23,7 @@ widgets belong in federated packages built on the contracts exposed here.
 - Fresh auth headers and single-flight refresh after HTTP 401
 - In-memory storage and atomic JSON-file persistence
 - Authorization and cookie header redaction in persisted records
+- Atomic managed-source staging for uploads that must survive cache eviction
 - Throttled progress with exponentially smoothed speed and ETA
 
 ## Quick start
@@ -72,6 +73,26 @@ final task = await manager.enqueue(
 Use `authScope` to persist an opaque credential lookup key. Do not put
 short-lived credentials in request headers. A `TransferAuthProvider` is asked
 for fresh headers immediately before execution and again after a 401.
+
+Uploads selected from a cache or temporary picker location can be staged before
+enqueueing. The original remains untouched, while the managed copy is retained
+after failure and removed after completion or cancellation:
+
+```dart
+final manager = TransferManager(
+  configuration: const TransferConfiguration(
+    managedStoragePath: '/app-support/transfer_manager',
+  ),
+);
+
+await manager.enqueue(
+  UploadRequest(
+    sourcePath: '/temporary-picker/video.mp4',
+    destination: Uri.parse('https://example.com/upload'),
+    sourcePolicy: UploadSourcePolicy.copyToManagedStorage,
+  ),
+);
+```
 
 ## Persistence and recovery
 

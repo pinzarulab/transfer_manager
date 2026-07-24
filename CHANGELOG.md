@@ -1,3 +1,10 @@
+## 0.3.0
+
+- Implemented atomic managed-source staging for persistent uploads.
+- Added safe managed-file cleanup after completion or cancellation.
+- Retained managed sources after failures so tasks remain retryable.
+- Added restart recovery for staged upload sources.
+
 ## 0.2.0
 
 - Added TUS 1.0 resumable uploads.

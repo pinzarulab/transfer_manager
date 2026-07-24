@@ -7,15 +7,20 @@
 - HTTP range downloads and multipart uploads
 - Retry, auth refresh, checksum verification, progress and ETA
 
-## 0.2 — resumable upload protocol (this repository)
+## 0.2 — resumable upload protocol
 
 - TUS 1.0 creation and chunk upload
 - Persisted session URL and offset reconciliation
 - Chunk retry without restarting the file
 
+## 0.3 — managed upload sources (this repository)
+
+- Atomic copies into package-managed storage
+- Restart-safe persisted source paths
+- Safe cleanup and retry retention
+
 ## 0.5 — Android durability
 
-- Managed upload staging
 - WorkManager plus foreground service
 - Native notification actions
 - Connectivity constraints and process-death tests

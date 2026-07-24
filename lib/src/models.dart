@@ -74,6 +74,9 @@ final class TransferConfiguration {
     this.networkPolicy = NetworkPolicy.any,
     this.defaultRetryPolicy = const RetryPolicy.exponential(),
     this.progressInterval = const Duration(milliseconds: 150),
+    this.managedStoragePath,
+    this.removeManagedSourceOnCompletion = true,
+    this.removeManagedSourceOnCancellation = true,
   }) : assert(maxConcurrentTasks > 0),
        assert(maxConcurrentUploads > 0),
        assert(maxConcurrentDownloads > 0),
@@ -86,6 +89,11 @@ final class TransferConfiguration {
   final NetworkPolicy networkPolicy;
   final RetryPolicy defaultRetryPolicy;
   final Duration progressInterval;
+
+  /// Root directory used by [UploadSourcePolicy.copyToManagedStorage].
+  final String? managedStoragePath;
+  final bool removeManagedSourceOnCompletion;
+  final bool removeManagedSourceOnCancellation;
 }
 
 final class TransferNotification {
@@ -174,6 +182,23 @@ final class UploadRequest extends TransferRequest {
   Uri get remoteUri => destination;
   @override
   String get protocol => 'http-multipart';
+
+  UploadRequest withSourcePath(String path) => UploadRequest(
+    sourcePath: path,
+    destination: destination,
+    method: method,
+    fieldName: fieldName,
+    sourcePolicy: sourcePolicy,
+    headers: headers,
+    authScope: authScope,
+    groupId: groupId,
+    priority: priority,
+    retryPolicy: retryPolicy,
+    networkPolicy: networkPolicy,
+    notification: notification,
+    checksum: checksum,
+    expectedChecksum: expectedChecksum,
+  );
 }
 
 /// A resumable upload using version 1.0 of the TUS protocol.
@@ -213,6 +238,23 @@ final class TusUploadRequest extends TransferRequest {
   Uri get remoteUri => endpoint;
   @override
   String get protocol => 'tus-1.0';
+
+  TusUploadRequest withSourcePath(String path) => TusUploadRequest(
+    sourcePath: path,
+    endpoint: endpoint,
+    chunkSize: chunkSize,
+    metadata: metadata,
+    sourcePolicy: sourcePolicy,
+    headers: headers,
+    authScope: authScope,
+    groupId: groupId,
+    priority: priority,
+    retryPolicy: retryPolicy,
+    networkPolicy: networkPolicy,
+    notification: notification,
+    checksum: checksum,
+    expectedChecksum: expectedChecksum,
+  );
 }
 
 final class DownloadRequest extends TransferRequest {
