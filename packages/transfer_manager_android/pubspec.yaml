@@ -1,0 +1,32 @@
+name: transfer_manager_android
+description: Android WorkManager implementation for transfer_manager.
+version: 0.1.0
+homepage: https://github.com/pinzarulab/transfer_manager
+
+environment:
+  sdk: ^3.8.0
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  transfer_manager: ^0.3.0
+  transfer_manager_platform_interface: ^0.1.0
+
+dependency_overrides:
+  transfer_manager:
+    path: ../..
+  transfer_manager_platform_interface:
+    path: ../transfer_manager_platform_interface
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.pinzarulab.transfer_manager_android
+        pluginClass: TransferManagerAndroidPlugin

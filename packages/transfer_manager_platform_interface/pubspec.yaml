@@ -1,0 +1,19 @@
+name: transfer_manager_platform_interface
+description: Platform contract for native transfer_manager implementations.
+version: 0.1.0
+homepage: https://github.com/pinzarulab/transfer_manager
+
+environment:
+  sdk: ^3.8.0
+  flutter: ">=3.35.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  lints: ^6.0.0
+

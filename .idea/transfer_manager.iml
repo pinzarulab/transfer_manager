@@ -6,6 +6,12 @@
       <excludeFolder url="file://$MODULE_DIR$/.dart_tool" />
       <excludeFolder url="file://$MODULE_DIR$/.pub" />
       <excludeFolder url="file://$MODULE_DIR$/build" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/transfer_manager_android/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/transfer_manager_android/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/transfer_manager_android/build" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/transfer_manager_android/example/.dart_tool" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/transfer_manager_android/example/.pub" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/transfer_manager_android/example/build" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

@@ -19,11 +19,13 @@
 - Restart-safe persisted source paths
 - Safe cleanup and retry retention
 
-## 0.5 — Android durability
+## 0.5 — Android durability (in progress)
 
-- WorkManager plus foreground service
-- Native notification actions
-- Connectivity constraints and process-death tests
+- Implemented: federated platform contract
+- Implemented: WorkManager background downloads and foreground notifications
+- Implemented: cancellation, constraints, range resumption, and reconnection
+- Remaining: native uploads and pause/resume notification actions
+- Remaining: device-level process-death and low-storage instrumentation tests
 
 ## 1.0 — mobile background engine
 

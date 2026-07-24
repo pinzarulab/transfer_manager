@@ -1,0 +1,7 @@
+/local.properties
+/.gradle/
+/gradlew
+/gradlew.bat
+/gradle/wrapper/gradle-wrapper.jar
+/gradle/wrapper/
+/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java

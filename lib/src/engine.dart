@@ -634,11 +634,7 @@ final class TusTransferEngine implements TransferEngine {
 
 void _checkControl(TransferControl control) {
   if (control.cancelRequested) throw const TransferCancelledException();
-  if (control.pauseRequested) throw const _TransferPausedException();
+  if (control.pauseRequested) throw const TransferPausedException();
 }
 
-final class _TransferPausedException implements Exception {
-  const _TransferPausedException();
-}
-
-bool isTransferPausedSignal(Object error) => error is _TransferPausedException;
+bool isTransferPausedSignal(Object error) => error is TransferPausedException;

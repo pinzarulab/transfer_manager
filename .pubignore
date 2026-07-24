@@ -1,0 +1,7 @@
+.dart_tool/
+.idea/
+.agents/
+.codex/
+build/
+coverage/
+pubspec.lock

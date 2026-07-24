@@ -1,0 +1,14 @@
+.dart_tool/
+build/
+pubspec.lock
+example/.dart_tool/
+example/.flutter-plugins-dependencies
+example/build/
+example/pubspec.lock
+example/android/.gradle/
+example/android/.kotlin/
+example/android/local.properties
+example/android/gradlew
+example/android/gradlew.bat
+example/android/gradle/wrapper/gradle-wrapper.jar
+example/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java

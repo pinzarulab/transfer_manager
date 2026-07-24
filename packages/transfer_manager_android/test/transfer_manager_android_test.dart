@@ -1,0 +1,72 @@
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:transfer_manager_android/transfer_manager_android.dart';
+import 'package:transfer_manager_platform_interface/transfer_manager_platform_interface.dart';
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('test.transfer_manager');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
+  tearDown(() {
+    messenger.setMockMethodCallHandler(channel, null);
+  });
+
+  test('maps capabilities returned by Android', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'capabilities');
+      return {
+        'backgroundDownloads': true,
+        'backgroundUploads': false,
+        'pauseResume': false,
+        'notifications': true,
+        'notificationCancellation': true,
+      };
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    final capabilities = await platform.capabilities();
+
+    expect(capabilities.backgroundDownloads, isTrue);
+    expect(capabilities.backgroundUploads, isFalse);
+    expect(capabilities.notificationCancellation, isTrue);
+  });
+
+  test('encodes a durable download request', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'enqueueDownload');
+      final arguments = call.arguments! as Map<Object?, Object?>;
+      expect(arguments['taskId'], 'task-1');
+      expect(arguments['networkPolicy'], 'unmetered');
+      return 'work-1';
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    final workId = await platform.enqueueDownload(
+      PlatformDownloadRequest(
+        taskId: 'task-1',
+        source: Uri.parse('https://example.com/file'),
+        destinationPath: '/files/file',
+        networkPolicy: 'unmetered',
+      ),
+    );
+
+    expect(workId, 'work-1');
+  });
+
+  test('requests notification permission through Android', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'requestNotificationPermission');
+      return true;
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    expect(await platform.requestNotificationPermission(), isTrue);
+  });
+
+  test('registerWith installs the Android implementation', () {
+    TransferManagerAndroid.registerWith();
+    expect(TransferManagerPlatform.instance, isA<TransferManagerAndroid>());
+  });
+}

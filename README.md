@@ -5,10 +5,10 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository currently contains the **0.3 foreground core**. It does not
-claim native background execution: Android WorkManager/foreground service,
-iOS background URLSession, notifications, S3 multipart, and Flutter
-widgets belong in federated packages built on the contracts exposed here.
+This repository contains the **0.3 foreground core** and the first federated
+Android packages. Android background downloads are available as an explicit
+WorkManager engine; background uploads, native pause/resume, iOS background
+URLSession, S3 multipart, and Flutter widgets remain future milestones.
 
 ## What works
 
@@ -25,6 +25,40 @@ widgets belong in federated packages built on the contracts exposed here.
 - Authorization and cookie header redaction in persisted records
 - Atomic managed-source staging for uploads that must survive cache eviction
 - Throttled progress with exponentially smoothed speed and ETA
+- Android WorkManager downloads with foreground progress notifications
+
+## Android background downloads
+
+The Android implementation is split into
+`transfer_manager_platform_interface` and `transfer_manager_android`. Add the
+Android engine before the foreground HTTP fallback:
+
+```dart
+final manager = TransferManager(
+  engines: [
+    AndroidBackgroundDownloadEngine(),
+    TusTransferEngine(),
+    HttpTransferEngine(),
+  ],
+);
+```
+
+The current Android capability set includes persistent background downloads,
+unmetered-network constraints, process-restart task reconnection, progress
+notifications, notification cancellation, range resumption, and atomic
+completion. Persisted `ETag`/`Last-Modified` validators protect resumed files
+from remote-resource changes. Successful downloads post a completion
+notification—even while the app is visible—and tapping it opens the file using
+a temporary `FileProvider` permission. It intentionally reports background
+uploads and native pause/resume as unsupported.
+
+On Android 13+, call
+`TransferManagerAndroid().requestNotificationPermission()` from a visible
+screen before expecting progress or completion notifications.
+
+Authorization and cookie headers are rejected by the Android worker because
+WorkManager persists its input. Authenticated background transfers require a
+future native credential-provider contract rather than storing access tokens.
 
 ## Quick start
 

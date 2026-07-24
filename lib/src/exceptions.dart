@@ -70,3 +70,8 @@ final class TransferSourceMissingException extends TransferException {
 final class TransferCancelledException extends TransferException {
   const TransferCancelledException() : super('Transfer was cancelled');
 }
+
+/// Internal-control signal that custom engines may throw after honoring pause.
+final class TransferPausedException implements Exception {
+  const TransferPausedException();
+}

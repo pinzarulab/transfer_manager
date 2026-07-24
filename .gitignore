@@ -3,4 +3,7 @@
 build/
 coverage/
 .transfers/
-
+**/.flutter-plugins-dependencies
+**/local.properties
+packages/**/build/
+packages/transfer_manager_*/pubspec.lock
