@@ -37,13 +37,13 @@ void main() {
 
     final first = await manager.enqueue(_request('first'));
     final second = await manager.enqueue(_request('second'));
-    await engine.started.first;
+    await _waitUntil(() => engine.active == 1);
 
     expect(first.state, TransferState.running);
     expect(second.state, TransferState.queued);
     engine.releaseNext();
     await _waitFor(first, TransferState.completed);
-    await engine.started.first;
+    await _waitUntil(() => engine.active == 1);
     engine.releaseNext();
     await _waitFor(second, TransferState.completed);
     expect(engine.maximumActive, 1);
@@ -79,6 +79,16 @@ Future<void> _waitFor(TransferTask task, TransferState state) async {
       .timeout(const Duration(seconds: 2));
 }
 
+Future<void> _waitUntil(bool Function() condition) async {
+  final deadline = DateTime.now().add(const Duration(seconds: 2));
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) {
+      throw TimeoutException('Condition was not reached');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 1));
+  }
+}
+
 final class _FakeEngine implements TransferEngine {
   _FakeEngine({this.failures = 0, this.block = false});
 
@@ -87,10 +97,7 @@ final class _FakeEngine implements TransferEngine {
   int attempts = 0;
   int active = 0;
   int maximumActive = 0;
-  final StreamController<void> _started = StreamController.broadcast();
   final List<Completer<void>> _releases = [];
-
-  Stream<void> get started => _started.stream;
 
   void releaseNext() => _releases.removeAt(0).complete();
 
@@ -102,7 +109,6 @@ final class _FakeEngine implements TransferEngine {
     attempts++;
     active++;
     if (active > maximumActive) maximumActive = active;
-    _started.add(null);
     try {
       if (failures > 0) {
         failures--;
