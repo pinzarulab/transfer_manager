@@ -1,0 +1,26 @@
+name: transfer_manager_ios_example
+description: iOS integration example for transfer_manager.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  transfer_manager: ^1.5.0
+  transfer_manager_ios:
+    path: ..
+
+dependency_overrides:
+  transfer_manager:
+    path: ../../..
+  transfer_manager_platform_interface:
+    path: ../../transfer_manager_platform_interface
+
+dev_dependencies:
+  lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

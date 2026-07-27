@@ -1,7 +1,12 @@
 package com.pinzarulab.transfer_manager_android
 
+import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.webkit.MimeTypeMap
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
@@ -14,6 +19,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -31,9 +37,24 @@ internal class DownloadWorker(
             ?: return failure("Missing destination path")
         val title = inputData.getString(KEY_NOTIFICATION_TITLE) ?: "Downloading file"
         val maxAttempts = inputData.getInt(KEY_MAX_ATTEMPTS, 5).coerceAtLeast(1)
-        val destination = File(destinationPath)
-        val partial = File("$destinationPath.part")
-        destination.parentFile?.mkdirs()
+        val publicFileName = publicDownloadFileName(destinationPath)
+        if (publicFileName != null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return failure("Public Downloads requires Android 10 or newer")
+        }
+        val destination: File? = if (publicFileName == null) {
+            File(destinationPath)
+        } else {
+            null
+        }
+        val partial = if (publicFileName == null) {
+            File("$destinationPath.part")
+        } else {
+            val stagingRoot = applicationContext.externalCacheDir
+                ?: applicationContext.cacheDir
+            File(stagingRoot, "transfer_manager/downloads/$taskId.part")
+        }
+        destination?.parentFile?.mkdirs()
+        partial.parentFile?.mkdirs()
 
         setForeground(
             TransferProgressNotifications.foregroundInfo(
@@ -49,7 +70,14 @@ internal class DownloadWorker(
 
         return try {
             waitWhilePaused(taskId, title, partial.length(), null, false)
-            download(source, destination, partial, taskId, title)
+            download(
+                source,
+                destination,
+                publicFileName,
+                partial,
+                taskId,
+                title,
+            )
         } catch (error: IOException) {
             if (runAttemptCount + 1 < maxAttempts) {
                 Result.retry()
@@ -65,7 +93,8 @@ internal class DownloadWorker(
 
     private suspend fun download(
         source: String,
-        destination: File,
+        destination: File?,
+        publicFileName: String?,
         partial: File,
         taskId: String,
         title: String,
@@ -113,7 +142,7 @@ internal class DownloadWorker(
             var transferred = offset
             total?.let {
                 TransferStorageGuard.requireDownloadCapacity(
-                    destination,
+                    destination ?: partial,
                     it - transferred,
                 )
             }
@@ -153,14 +182,29 @@ internal class DownloadWorker(
             if (total != null && transferred != total) {
                 throw IOException("Incomplete response")
             }
-            completeAtomically(partial, destination)
+            val publicUri = if (publicFileName == null) {
+                completeAtomically(partial, checkNotNull(destination))
+                null
+            } else {
+                publishToDownloads(partial, publicFileName)
+            }
             metadata.clear(taskId)
-            TransferFileNotifications.showCompleted(
-                applicationContext,
-                taskId,
-                title,
-                destination,
-            )
+            if (publicUri == null) {
+                TransferFileNotifications.showCompleted(
+                    applicationContext,
+                    taskId,
+                    title,
+                    checkNotNull(destination),
+                )
+            } else {
+                TransferFileNotifications.showCompleted(
+                    applicationContext,
+                    taskId,
+                    title,
+                    publicUri,
+                    checkNotNull(publicFileName),
+                )
+            }
             val output = progressData(transferred, total)
             return Result.success(output)
         } finally {
@@ -251,7 +295,71 @@ internal class DownloadWorker(
         }
     }
 
+    private fun publishToDownloads(partial: File, fileName: String): Uri {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            throw IOException("Public Downloads requires Android 10 or newer")
+        }
+        val resolver = applicationContext.contentResolver
+        val collection = MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        val relativePath = "${Environment.DIRECTORY_DOWNLOADS}/"
+
+        resolver.query(
+            collection,
+            arrayOf(MediaStore.MediaColumns._ID),
+            "${MediaStore.MediaColumns.DISPLAY_NAME} = ? AND " +
+                "${MediaStore.MediaColumns.RELATIVE_PATH} = ?",
+            arrayOf(fileName, relativePath),
+            null,
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+            while (cursor.moveToNext()) {
+                resolver.delete(
+                    Uri.withAppendedPath(collection, cursor.getLong(idColumn).toString()),
+                    null,
+                    null,
+                )
+            }
+        }
+
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(
+                MediaStore.MediaColumns.MIME_TYPE,
+                MimeTypeMap.getSingleton()
+                    .getMimeTypeFromExtension(File(fileName).extension.lowercase())
+                    ?: "application/octet-stream",
+            )
+            put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(collection, values)
+            ?: throw IOException("Could not create Downloads entry")
+        try {
+            resolver.openOutputStream(uri, "w")?.use { output ->
+                partial.inputStream().buffered().use { input ->
+                    input.copyTo(output)
+                }
+            } ?: throw IOException("Could not open Downloads entry")
+            resolver.update(
+                uri,
+                ContentValues().apply {
+                    put(MediaStore.MediaColumns.IS_PENDING, 0)
+                },
+                null,
+                null,
+            )
+            if (!partial.delete()) {
+                throw IOException("Could not remove staged download")
+            }
+            return uri
+        } catch (error: Throwable) {
+            resolver.delete(uri, null, null)
+            throw error
+        }
+    }
+
     companion object {
+        private const val DOWNLOADS_SCHEME = "transfer-manager-downloads"
         const val KEY_TASK_ID = "taskId"
         const val KEY_SOURCE = "source"
         const val KEY_DESTINATION = "destination"
@@ -270,5 +378,33 @@ internal class DownloadWorker(
             status == HttpURLConnection.HTTP_CLIENT_TIMEOUT ||
                 status == 429 ||
                 status in 500..599
+
+        internal fun isPublicDownloadsDestination(destination: String): Boolean =
+            try {
+                URI(destination).scheme == DOWNLOADS_SCHEME
+            } catch (_: Exception) {
+                false
+            }
+
+        internal fun publicDownloadFileName(destination: String): String? {
+            if (!isPublicDownloadsDestination(destination)) return null
+            val uri = URI(destination)
+            val rawName = uri.rawPath
+                ?.substringAfterLast('/')
+                ?.takeIf(String::isNotEmpty)
+                ?: uri.rawSchemeSpecificPart
+                    ?.removePrefix("//")
+                    ?.substringAfterLast('/')
+                    ?.takeIf(String::isNotEmpty)
+                ?: return null
+            val decodedName = URI("file:/$rawName").path.substringAfterLast('/')
+            return decodedName.takeIf {
+                    it.isNotBlank() &&
+                        it != "." &&
+                        it != ".." &&
+                        !it.contains('/') &&
+                        !it.contains('\\')
+                }
+        }
     }
 }

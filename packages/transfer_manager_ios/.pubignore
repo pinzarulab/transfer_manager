@@ -1,0 +1,10 @@
+.dart_tool/
+build/
+pubspec.lock
+example/.dart_tool/
+example/.flutter-plugins-dependencies
+example/build/
+example/pubspec.lock
+example/ios/Pods/
+example/ios/.symlinks/
+example/ios/Flutter/ephemeral/

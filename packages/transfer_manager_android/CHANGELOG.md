@@ -4,6 +4,8 @@
 - Added cooperative pause support across download, multipart, and TUS workers.
 - Added preflight low-storage protection for downloads.
 - Added physical-device persistence and low-storage instrumentation tests.
+- Added scoped-storage-safe publishing to the user-visible Downloads
+  collection on Android 10 and newer.
 
 ## 0.2.0
 

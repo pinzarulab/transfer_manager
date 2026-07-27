@@ -50,6 +50,20 @@ if (!await android.notificationsEnabled()) {
 }
 ```
 
+To publish a completed download in the user-visible system Downloads folder on
+Android 10 and newer, use the MediaStore-backed destination helper:
+
+```dart
+DownloadRequest(
+  source: Uri.parse('https://example.com/report.pdf'),
+  destinationPath:
+      AndroidBackgroundDownloadEngine.downloadsDestination('report.pdf'),
+);
+```
+
+This does not require broad storage permission. The file becomes visible to
+the user only after the staged download has completed.
+
 Short-lived authorization and cookie headers are rejected because WorkManager
 persists its input data. Public or presigned URLs are supported in this
 milestone. Multipart upload retries restart the request; TUS uploads persist

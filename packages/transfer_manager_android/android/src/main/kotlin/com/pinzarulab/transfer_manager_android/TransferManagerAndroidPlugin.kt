@@ -198,15 +198,22 @@ class TransferManagerAndroidPlugin :
             result.error("invalid_request", "taskId, source, and destinationPath are required", null)
             return
         }
-        try {
-            TransferFileNotifications.validateShareable(context, File(destination))
-        } catch (_: IllegalArgumentException) {
-            result.error(
-                "unshareable_destination",
-                "Destination must be in app storage or shared external storage",
-                null,
-            )
-            return
+        if (DownloadWorker.isPublicDownloadsDestination(destination)) {
+            if (DownloadWorker.publicDownloadFileName(destination) == null) {
+                result.error("invalid_destination", "Downloads file name is invalid", null)
+                return
+            }
+        } else {
+            try {
+                TransferFileNotifications.validateShareable(context, File(destination))
+            } catch (_: IllegalArgumentException) {
+                result.error(
+                    "unshareable_destination",
+                    "Destination must be in app storage or shared external storage",
+                    null,
+                )
+                return
+            }
         }
         val headers = call.argument<Map<String, String>>("headers").orEmpty()
         val sensitive = headers.keys.firstOrNull(TransferSecurity::isSensitiveHeader)

@@ -58,6 +58,26 @@ void main() {
     expect(workId, 'work-1');
   });
 
+  test('creates a user-visible Downloads destination', () {
+    final destination = AndroidBackgroundDownloadEngine.downloadsDestination(
+      'report 1.pdf',
+    );
+    final uri = Uri.parse(destination);
+
+    expect(destination, 'transfer-manager-downloads:/report%201.pdf');
+    expect(uri.scheme, 'transfer-manager-downloads');
+    expect(uri.pathSegments, ['report 1.pdf']);
+  });
+
+  test('rejects nested Downloads destinations', () {
+    expect(
+      () => AndroidBackgroundDownloadEngine.downloadsDestination(
+        'private/report.pdf',
+      ),
+      throwsArgumentError,
+    );
+  });
+
   test('requests notification permission through Android', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
       expect(call.method, 'requestNotificationPermission');

@@ -1,0 +1,35 @@
+name: transfer_manager_example
+description: Android and iOS background download example for transfer_manager.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_provider: ^2.1.6
+  transfer_manager:
+    path: ..
+  transfer_manager_android:
+    path: ../packages/transfer_manager_android
+  transfer_manager_ios:
+    path: ../packages/transfer_manager_ios
+
+dependency_overrides:
+  # 2.3.x uses package:jni, which is incompatible with Flutter's current
+  # generated AGP 9 template while android.builtInKotlin is disabled.
+  path_provider_android: 2.2.18
+  transfer_manager:
+    path: ..
+  transfer_manager_platform_interface:
+    path: ../packages/transfer_manager_platform_interface
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

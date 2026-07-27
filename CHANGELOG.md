@@ -1,3 +1,16 @@
+## 1.5.0
+
+- Added the federated `transfer_manager_ios` package.
+- Added iOS background URLSession downloads and file-backed multipart uploads.
+- Added iOS relaunch reconciliation, native pause/resume, cancellation,
+  bounded retries, progress events, and completion notifications.
+- Added CocoaPods and Swift Package Manager integration with a privacy manifest.
+- Added a complete Android/iOS Flutter download example with notification
+  permission handling, progress, and task controls.
+- Added MediaStore-backed Android Downloads destinations and iOS Files-app
+  access for example downloads.
+- Added iOS notification-tap delivery for running and cold-launched apps.
+
 ## 1.0.0
 
 - Added persistent Android pause/resume controls to active transfer

@@ -5,11 +5,12 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository contains the **1.0 transfer core** and the first federated
-Android packages. Android background downloads, multipart uploads, and
+This repository contains the **1.5 transfer core** and federated Android and
+iOS packages. Android background downloads, multipart uploads, and
 resumable TUS uploads are available as explicit WorkManager engines, including
-persistent pause/resume notification actions. iOS background URLSession, S3
-multipart, and Flutter widgets remain future milestones.
+persistent pause/resume notification actions. iOS provides background
+URLSession downloads and multipart uploads. S3 multipart and Flutter widgets
+remain future milestones.
 
 ## What works
 
@@ -31,6 +32,8 @@ multipart, and Flutter widgets remain future milestones.
 - Android WorkManager TUS uploads with persistent sessions and chunk resumption
 - Persistent pause/resume actions on active Android transfer notifications
 - Android low-storage preflight protection and device durability tests
+- iOS background URLSession downloads and file-backed multipart uploads
+- iOS relaunch reconciliation, pause/resume, retries, and notifications
 
 ## Android background downloads
 
@@ -70,6 +73,37 @@ Authorization and cookie headers are rejected by the Android worker because
 WorkManager persists its input. Authenticated background transfers require a
 future native credential-provider contract rather than storing access tokens.
 
+## iOS background transfers
+
+Add the iOS engines before the foreground fallbacks:
+
+```dart
+final manager = TransferManager(
+  engines: [
+    IosBackgroundDownloadEngine(),
+    IosBackgroundUploadEngine(),
+    TusTransferEngine(),
+    HttpTransferEngine(),
+  ],
+);
+```
+
+The iOS plugin automatically registers its Dart and native implementations. It
+uses a relaunch-enabled background `URLSession`, persists task snapshots, and
+reconciles native tasks when Flutter reconnects. Downloads are atomically moved
+to the requested destination. Multipart uploads are staged as bounded,
+file-backed request bodies because iOS background uploads must originate from a
+file.
+
+Call `TransferManagerIos().requestNotificationPermission()` from visible UI
+before expecting completion notifications. Tapping a completion notification
+opens the application. Use `notificationResponses` and
+`takeInitialNotificationResponse()` to navigate using the included task
+identifier and downloaded file path.
+
+iOS does not advertise native background TUS. Keep `TusTransferEngine()` after
+the iOS native engines to use resumable TUS while the application is active.
+
 ## Quick start
 
 ```dart
@@ -96,6 +130,23 @@ Future<void> main() async {
     print('${event.state}: ${event.progress.fraction}');
   });
 }
+```
+
+## Flutter example
+
+The complete app in [`example/`](example/) runs the native Android or iOS
+background download engine, offers 1 MB, 10 MB, and 50 MB sample downloads,
+shows task controls and progress, restores persisted tasks, and requests
+notification permission before enqueueing.
+
+On Android 10 and newer the example publishes completed files to the system
+Downloads collection through MediaStore. On iOS it exposes its Documents
+directory through the Files app.
+
+```sh
+cd example
+flutter pub get
+flutter run
 ```
 
 For a resumable upload, point `TusUploadRequest` at the server's TUS creation
@@ -152,8 +203,9 @@ with SQLite without changing the manager API.
 ## Platform boundary
 
 The federated platform interface reports each native engine independently.
-Android currently advertises durable background downloads, multipart uploads,
-TUS uploads, notifications, and notification cancellation. Future platform
-packages should report only the capabilities they actually support.
+Android advertises durable background downloads, multipart and TUS uploads,
+notifications, and notification cancellation. iOS advertises background
+downloads, multipart uploads, notifications, pause/resume, and relaunch
+reconciliation; native TUS and notification cancellation are not advertised.
 
 See [ROADMAP.md](ROADMAP.md) for the staged path to the full federated plugin.

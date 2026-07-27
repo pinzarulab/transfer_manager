@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.webkit.MimeTypeMap
 import androidx.core.app.NotificationCompat
@@ -24,12 +25,26 @@ internal object TransferFileNotifications {
         taskId: String,
         title: String,
         file: File,
+    ) = showCompleted(
+        context,
+        taskId,
+        title,
+        contentUri(context, file),
+        file.name,
+    )
+
+    fun showCompleted(
+        context: Context,
+        taskId: String,
+        title: String,
+        contentUri: Uri,
+        fileName: String,
     ) {
         val notifications = NotificationManagerCompat.from(context)
         if (!notifications.areNotificationsEnabled()) return
         createCompletionChannel(context)
         val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(contentUri(context, file), mimeType(file))
+            setDataAndType(contentUri, mimeType(fileName))
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
@@ -48,7 +63,7 @@ internal object TransferFileNotifications {
         val notification = NotificationCompat.Builder(context, COMPLETION_CHANNEL)
             .setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle("$title complete")
-            .setContentText(file.name)
+            .setContentText(fileName)
             .setContentIntent(openFile)
             .setAutoCancel(true)
             .setOngoing(false)
@@ -101,8 +116,8 @@ internal object TransferFileNotifications {
             file,
         )
 
-    private fun mimeType(file: File): String {
-        val extension = file.extension.lowercase()
+    private fun mimeType(fileName: String): String {
+        val extension = File(fileName).extension.lowercase()
         return MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension)
             ?: "application/octet-stream"
     }

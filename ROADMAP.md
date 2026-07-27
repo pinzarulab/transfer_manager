@@ -33,16 +33,25 @@
 - Chunk streaming and server-offset reconciliation
 - Expired-session recreation and completion notifications
 
-## 1.0 — Android durability (this repository)
+## 1.0 — Android durability
 
 - Persistent pause/resume notification actions
 - Cooperative pause across download, multipart, and TUS workers
 - Low-storage download preflight protection
 - Physical-device persistence and low-storage instrumentation tests
 
+## 1.5 — iOS durability (this repository)
+
+- Federated iOS package
+- Background URLSession downloads and file-backed multipart uploads
+- Relaunch callbacks and native task reconciliation
+- Pause/resume, cancellation, bounded retries, progress, and notifications
+- CocoaPods and Swift Package Manager integration
+- Foreground TUS fallback
+
 ## Future mobile expansion
 
-- iOS background URLSession and relaunch reconciliation
+- Native iOS background TUS orchestration
 - SQLite migrations and retention policies
 - Optional Flutter widget package
 
@@ -51,6 +60,7 @@
 - S3 multipart, task groups, bandwidth limits, desktop adapters, reduced web
   support, and optional Live Activities
 
-The 1.0 acceptance bar includes multi-gigabyte streaming, atomic completion,
-restart and connectivity recovery, token renewal, chunk-level retry where the
-protocol supports it, corruption detection, and zero persisted auth secrets.
+The mobile durability acceptance bar includes multi-gigabyte streaming, atomic
+completion, restart and connectivity recovery, token renewal, chunk-level
+retry where the protocol supports it, corruption detection, and zero persisted
+auth secrets.
