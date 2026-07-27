@@ -57,6 +57,43 @@ internal object TransferFileNotifications {
         notifications.notify(completionNotificationId(taskId), notification)
     }
 
+    fun showUploadCompleted(
+        context: Context,
+        taskId: String,
+        title: String,
+        file: File,
+    ) {
+        val notifications = NotificationManagerCompat.from(context)
+        if (!notifications.areNotificationsEnabled()) return
+        createCompletionChannel(context)
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                PendingIntent.FLAG_IMMUTABLE
+            } else {
+                0
+            }
+        val openApp = context.packageManager
+            .getLaunchIntentForPackage(context.packageName)
+            ?.putExtra("transfer_manager_task_id", taskId)
+            ?.let {
+                PendingIntent.getActivity(
+                    context,
+                    completionNotificationId(taskId),
+                    it,
+                    flags,
+                )
+            }
+        val builder = NotificationCompat.Builder(context, COMPLETION_CHANNEL)
+            .setSmallIcon(android.R.drawable.stat_sys_upload_done)
+            .setContentTitle("$title complete")
+            .setContentText(file.name)
+            .setAutoCancel(true)
+            .setOngoing(false)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+        if (openApp != null) builder.setContentIntent(openApp)
+        notifications.notify(completionNotificationId(taskId), builder.build())
+    }
+
     private fun contentUri(context: Context, file: File) =
         FileProvider.getUriForFile(
             context,
@@ -89,4 +126,3 @@ internal object TransferFileNotifications {
     private fun completionNotificationId(taskId: String): Int =
         taskId.hashCode().xor(0x5f3759df).and(Int.MAX_VALUE).coerceAtLeast(1)
 }
-

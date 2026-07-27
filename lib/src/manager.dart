@@ -129,6 +129,7 @@ final class TransferManager {
     final record = _require(id);
     if (record.state != TransferState.failed) return;
     record.retryAttempts = 0;
+    record.nativeTaskId = null;
     record.error = null;
     await _transition(record, TransferState.queued);
     _insertReady(id);

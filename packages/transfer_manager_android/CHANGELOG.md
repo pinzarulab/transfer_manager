@@ -4,3 +4,5 @@
 - Added foreground notifications, progress events, task queries, network
   constraints, cancellation, and process-restart reconnection.
 - Added completion notifications that securely open downloaded files.
+- Added streamed multipart background uploads and core `UploadRequest`
+  integration.

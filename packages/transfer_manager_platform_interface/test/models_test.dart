@@ -25,4 +25,17 @@ void main() {
     expect(snapshot.state, PlatformTaskState.unknown);
     expect(snapshot.fraction, 0.5);
   });
+
+  test('encodes multipart upload requests', () {
+    final request = PlatformUploadRequest(
+      taskId: 'upload-1',
+      sourcePath: '/files/video.mp4',
+      destination: Uri.parse('https://example.com/upload'),
+      fieldName: 'media',
+      maxAttempts: 3,
+    );
+
+    expect(request.toMap()['fieldName'], 'media');
+    expect(request.toMap()['maxAttempts'], 3);
+  });
 }

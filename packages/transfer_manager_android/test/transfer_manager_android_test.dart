@@ -65,6 +65,28 @@ void main() {
     expect(await platform.requestNotificationPermission(), isTrue);
   });
 
+  test('encodes a durable multipart upload request', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'enqueueUpload');
+      final arguments = call.arguments! as Map<Object?, Object?>;
+      expect(arguments['sourcePath'], '/files/video.mp4');
+      expect(arguments['fieldName'], 'media');
+      return 'upload-work-1';
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    final workId = await platform.enqueueUpload(
+      PlatformUploadRequest(
+        taskId: 'upload-1',
+        sourcePath: '/files/video.mp4',
+        destination: Uri.parse('https://example.com/upload'),
+        fieldName: 'media',
+      ),
+    );
+
+    expect(workId, 'upload-work-1');
+  });
+
   test('registerWith installs the Android implementation', () {
     TransferManagerAndroid.registerWith();
     expect(TransferManagerPlatform.instance, isA<TransferManagerAndroid>());

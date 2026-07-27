@@ -6,9 +6,10 @@ authentication renewal, integrity verification, and pluggable execution
 engines.
 
 This repository contains the **0.3 foreground core** and the first federated
-Android packages. Android background downloads are available as an explicit
-WorkManager engine; background uploads, native pause/resume, iOS background
-URLSession, S3 multipart, and Flutter widgets remain future milestones.
+Android packages. Android background downloads and simple multipart uploads
+are available as explicit WorkManager engines; native TUS, pause/resume, iOS
+background URLSession, S3 multipart, and Flutter widgets remain future
+milestones.
 
 ## What works
 
@@ -26,6 +27,7 @@ URLSession, S3 multipart, and Flutter widgets remain future milestones.
 - Atomic managed-source staging for uploads that must survive cache eviction
 - Throttled progress with exponentially smoothed speed and ETA
 - Android WorkManager downloads with foreground progress notifications
+- Android WorkManager multipart uploads with managed-source integration
 
 ## Android background downloads
 
@@ -37,6 +39,7 @@ Android engine before the foreground HTTP fallback:
 final manager = TransferManager(
   engines: [
     AndroidBackgroundDownloadEngine(),
+    AndroidBackgroundUploadEngine(),
     TusTransferEngine(),
     HttpTransferEngine(),
   ],
@@ -49,8 +52,9 @@ notifications, notification cancellation, range resumption, and atomic
 completion. Persisted `ETag`/`Last-Modified` validators protect resumed files
 from remote-resource changes. Successful downloads post a completion
 notification—even while the app is visible—and tapping it opens the file using
-a temporary `FileProvider` permission. It intentionally reports background
-uploads and native pause/resume as unsupported.
+a temporary `FileProvider` permission. Multipart uploads can also run in
+WorkManager; retrying them restarts the request, while TUS remains the
+resumable-upload option. Native pause/resume is still unsupported.
 
 On Android 13+, call
 `TransferManagerAndroid().requestNotificationPermission()` from a visible

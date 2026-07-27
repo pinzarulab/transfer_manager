@@ -4,6 +4,7 @@
 - Added WorkManager background downloads, foreground progress notifications,
   constraints, cancellation, task reconnection, and a core-engine adapter.
 - Added completion notifications with secure open-file actions.
+- Added streamed multipart background uploads through WorkManager.
 - Exposed a pause signal for custom transfer engines.
 
 ## 0.3.0

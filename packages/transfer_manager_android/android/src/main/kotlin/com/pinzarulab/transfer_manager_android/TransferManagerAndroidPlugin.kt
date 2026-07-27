@@ -103,7 +103,7 @@ class TransferManagerAndroidPlugin :
             "capabilities" -> result.success(
                 mapOf(
                     "backgroundDownloads" to true,
-                    "backgroundUploads" to false,
+                    "backgroundUploads" to true,
                     "pauseResume" to false,
                     "notifications" to true,
                     "notificationCancellation" to true,
@@ -114,6 +114,7 @@ class TransferManagerAndroidPlugin :
             )
             "requestNotificationPermission" -> requestNotificationPermission(result)
             "enqueueDownload" -> enqueueDownload(call, result)
+            "enqueueUpload" -> enqueueUpload(call, result)
             "task" -> queryTask(call.argument<String>("taskId"), result)
             "cancel" -> cancel(call.argument<String>("taskId"), result)
             else -> result.notImplemented()
@@ -234,6 +235,85 @@ class TransferManagerAndroidPlugin :
         val request = OneTimeWorkRequestBuilder<DownloadWorker>()
             .setInputData(input)
             .setConstraints(constraints)
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
+            .addTag(TAG_ALL)
+            .addTag(tagFor(taskId))
+            .build()
+        workManager.enqueueUniqueWork(
+            uniqueName(taskId),
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
+        registry.put(taskId, request.id)
+        observe(taskId, request.id)
+        result.success(request.id.toString())
+    }
+
+    private fun enqueueUpload(call: MethodCall, result: MethodChannel.Result) {
+        val taskId = call.argument<String>("taskId")
+        val sourcePath = call.argument<String>("sourcePath")
+        val destination = call.argument<String>("destination")
+        if (
+            taskId.isNullOrBlank() ||
+            sourcePath.isNullOrBlank() ||
+            destination.isNullOrBlank()
+        ) {
+            result.error(
+                "invalid_request",
+                "taskId, sourcePath, and destination are required",
+                null,
+            )
+            return
+        }
+        if (!File(sourcePath).isFile) {
+            result.error("source_missing", "Upload source does not exist", null)
+            return
+        }
+        val method = (call.argument<String>("method") ?: "POST").uppercase()
+        if (method !in setOf("POST", "PUT", "PATCH")) {
+            result.error("invalid_method", "Upload method must be POST, PUT, or PATCH", null)
+            return
+        }
+        val fieldName = call.argument<String>("fieldName") ?: "file"
+        if (!fieldName.matches(Regex("^[A-Za-z0-9_.-]+$"))) {
+            result.error("invalid_field", "Multipart field name is invalid", null)
+            return
+        }
+        val headers = call.argument<Map<String, String>>("headers").orEmpty()
+        val sensitive = headers.keys.firstOrNull(TransferSecurity::isSensitiveHeader)
+        if (sensitive != null) {
+            result.error(
+                "sensitive_header",
+                "$sensitive cannot be persisted in WorkManager input",
+                null,
+            )
+            return
+        }
+        val networkPolicy = call.argument<String>("networkPolicy") ?: "any"
+        val networkType = when (networkPolicy) {
+            "unmetered", "wifiOnly" -> NetworkType.UNMETERED
+            else -> NetworkType.CONNECTED
+        }
+        val request = OneTimeWorkRequestBuilder<UploadWorker>()
+            .setInputData(
+                workDataOf(
+                    UploadWorker.KEY_TASK_ID to taskId,
+                    UploadWorker.KEY_SOURCE_PATH to sourcePath,
+                    UploadWorker.KEY_DESTINATION to destination,
+                    UploadWorker.KEY_METHOD to method,
+                    UploadWorker.KEY_FIELD_NAME to fieldName,
+                    UploadWorker.KEY_HEADERS_JSON to JSONObject(headers).toString(),
+                    UploadWorker.KEY_NOTIFICATION_TITLE to
+                        (call.argument<String>("notificationTitle") ?: "Uploading file"),
+                    UploadWorker.KEY_MAX_ATTEMPTS to
+                        (call.argument<Int>("maxAttempts") ?: 5).coerceAtLeast(1),
+                ),
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(networkType)
+                    .build(),
+            )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
             .addTag(TAG_ALL)
             .addTag(tagFor(taskId))

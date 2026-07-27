@@ -2,11 +2,11 @@
 
 Android implementation of the `transfer_manager` platform contract.
 
-The initial native milestone supports durable HTTP downloads through
-WorkManager, foreground progress notifications, network constraints, task
-reconnection, atomic `.part` completion, and cancellation. Capabilities report
-background uploads and pause/resume as unsupported until those paths are
-implemented.
+The native milestone supports durable HTTP downloads and streamed multipart
+uploads through WorkManager, foreground progress notifications, network
+constraints, task reconnection, atomic `.part` download completion, and
+cancellation. Capabilities report native TUS and pause/resume as unsupported
+until those paths are implemented.
 
 ## Core integration
 
@@ -14,6 +14,7 @@ implemented.
 final manager = TransferManager(
   engines: [
     AndroidBackgroundDownloadEngine(),
+    AndroidBackgroundUploadEngine(),
     TusTransferEngine(),
     HttpTransferEngine(),
   ],
@@ -50,4 +51,5 @@ if (!await android.notificationsEnabled()) {
 
 Short-lived authorization and cookie headers are rejected because WorkManager
 persists its input data. Public or presigned download URLs are supported in
-this milestone.
+this milestone. Multipart upload retries restart the request; use TUS when
+chunk-level resumability is required.

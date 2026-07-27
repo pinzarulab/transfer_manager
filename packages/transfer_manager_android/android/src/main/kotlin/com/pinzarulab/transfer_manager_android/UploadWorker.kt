@@ -1,7 +1,6 @@
 package com.pinzarulab.transfer_manager_android
 
 import android.content.Context
-import android.os.Build
 import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
@@ -9,30 +8,27 @@ import androidx.work.workDataOf
 import kotlinx.coroutines.ensureActive
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.nio.file.Files
-import java.nio.file.StandardCopyOption
+import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
-internal class DownloadWorker(
+internal class UploadWorker(
     context: Context,
     parameters: WorkerParameters,
 ) : CoroutineWorker(context, parameters) {
     override suspend fun doWork(): Result {
         val taskId = inputData.getString(KEY_TASK_ID)
             ?: return failure("Missing task identifier")
-        val source = inputData.getString(KEY_SOURCE)
-            ?: return failure("Missing source URL")
-        val destinationPath = inputData.getString(KEY_DESTINATION)
-            ?: return failure("Missing destination path")
-        val title = inputData.getString(KEY_NOTIFICATION_TITLE) ?: "Downloading file"
+        val sourcePath = inputData.getString(KEY_SOURCE_PATH)
+            ?: return failure("Missing source path")
+        val destination = inputData.getString(KEY_DESTINATION)
+            ?: return failure("Missing destination URL")
+        val source = File(sourcePath)
+        if (!source.isFile) return failure("Upload source is missing")
+        val title = inputData.getString(KEY_NOTIFICATION_TITLE) ?: "Uploading file"
         val maxAttempts = inputData.getInt(KEY_MAX_ATTEMPTS, 5).coerceAtLeast(1)
-        val destination = File(destinationPath)
-        val partial = File("$destinationPath.part")
-        destination.parentFile?.mkdirs()
 
         setForeground(
             TransferProgressNotifications.foregroundInfo(
@@ -41,13 +37,13 @@ internal class DownloadWorker(
                 taskId,
                 title,
                 0,
-                null,
-                false,
+                source.length(),
+                true,
             ),
         )
 
         return try {
-            download(source, destination, partial, taskId, title)
+            upload(taskId, source, destination, title)
         } catch (error: IOException) {
             if (runAttemptCount + 1 < maxAttempts) {
                 Result.retry()
@@ -61,26 +57,30 @@ internal class DownloadWorker(
         }
     }
 
-    private suspend fun download(
-        source: String,
-        destination: File,
-        partial: File,
+    private suspend fun upload(
         taskId: String,
+        source: File,
+        destination: String,
         title: String,
     ): Result {
-        var offset = partial.takeIf(File::exists)?.length() ?: 0
-        val metadata = DownloadMetadataStore(applicationContext)
-        val connection = (URL(source).openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
+        val boundary = "transfer-manager-${UUID.randomUUID()}"
+        val fieldName = inputData.getString(KEY_FIELD_NAME) ?: "file"
+        val fileName = source.name.replace("\"", "_").replace("\r", "_").replace("\n", "_")
+        val prefix = (
+            "--$boundary\r\n" +
+                "Content-Disposition: form-data; name=\"$fieldName\"; " +
+                "filename=\"$fileName\"\r\n" +
+                "Content-Type: application/octet-stream\r\n\r\n"
+            ).encodeToByteArray()
+        val suffix = "\r\n--$boundary--\r\n".encodeToByteArray()
+        val sourceLength = source.length()
+        val bodyLength = prefix.size.toLong() + sourceLength + suffix.size
+        val connection = (URL(destination).openConnection() as HttpURLConnection).apply {
+            requestMethod = inputData.getString(KEY_METHOD) ?: "POST"
             connectTimeout = 30_000
             readTimeout = 30_000
             instanceFollowRedirects = true
-            if (offset > 0) {
-                setRequestProperty("Range", "bytes=$offset-")
-                metadata.validator(taskId)?.let {
-                    setRequestProperty("If-Range", it)
-                }
-            }
+            doOutput = true
             val headersJson = inputData.getString(KEY_HEADERS_JSON) ?: "{}"
             val headers = JSONObject(headersJson)
             headers.keys().forEach { name ->
@@ -88,40 +88,24 @@ internal class DownloadWorker(
                     setRequestProperty(name, headers.getString(name))
                 }
             }
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            setFixedLengthStreamingMode(bodyLength)
         }
         try {
-            val status = connection.responseCode
-            if (isRetryableStatus(status)) {
-                return retryOrFailure("HTTP $status")
-            }
-            if (status !in 200..299) {
-                return failure("HTTP $status")
-            }
-            val resumed = status == HttpURLConnection.HTTP_PARTIAL
-            if (offset > 0 && !resumed) {
-                offset = 0
-            }
-            metadata.putValidator(
-                taskId,
-                connection.getHeaderField("ETag")
-                    ?: connection.getHeaderField("Last-Modified"),
-            )
-            val responseLength = connection.contentLengthLong
-            val total = responseLength.takeIf { it >= 0 }?.plus(offset)
-            var transferred = offset
+            var transferred = 0L
             var lastNotificationAt = 0L
-
-            FileOutputStream(partial, resumed).buffered().use { sink ->
-                connection.inputStream.buffered().use { input ->
+            connection.outputStream.buffered().use { output ->
+                output.write(prefix)
+                source.inputStream().buffered().use { input ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
                         coroutineContext.ensureActive()
                         if (isStopped) throw IOException("Worker stopped")
                         val count = input.read(buffer)
                         if (count < 0) break
-                        sink.write(buffer, 0, count)
+                        output.write(buffer, 0, count)
                         transferred += count
-                        setProgress(progressData(transferred, total))
+                        setProgress(progressData(transferred, sourceLength))
                         val now = System.currentTimeMillis()
                         if (now - lastNotificationAt >= NOTIFICATION_INTERVAL_MS) {
                             setForeground(
@@ -131,29 +115,39 @@ internal class DownloadWorker(
                                     taskId,
                                     title,
                                     transferred,
-                                    total,
-                                    false,
+                                    sourceLength,
+                                    true,
                                 ),
                             )
                             lastNotificationAt = now
                         }
                     }
-                    sink.flush()
+                }
+                output.write(suffix)
+                output.flush()
+            }
+
+            val status = connection.responseCode
+            val response = if (status >= 400) connection.errorStream else connection.inputStream
+            response?.use { input ->
+                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                while (input.read(buffer) >= 0) {
+                    // Drain the response so the connection can be reused.
                 }
             }
-            if (total != null && transferred != total) {
-                throw IOException("Incomplete response")
+            if (DownloadWorker.isRetryableStatus(status)) {
+                return retryOrFailure("HTTP $status")
             }
-            completeAtomically(partial, destination)
-            metadata.clear(taskId)
-            TransferFileNotifications.showCompleted(
+            if (status !in 200..299) {
+                return failure("HTTP $status")
+            }
+            TransferFileNotifications.showUploadCompleted(
                 applicationContext,
                 taskId,
                 title,
-                destination,
+                source,
             )
-            val output = progressData(transferred, total)
-            return Result.success(output)
+            return Result.success(progressData(sourceLength, sourceLength))
         } finally {
             connection.disconnect()
         }
@@ -171,46 +165,23 @@ internal class DownloadWorker(
     private fun failure(message: String): Result =
         Result.failure(workDataOf(KEY_ERROR to message))
 
-    private fun progressData(bytes: Long, total: Long?): Data =
+    private fun progressData(bytes: Long, total: Long): Data =
         workDataOf(
-            KEY_BYTES to bytes,
-            KEY_TOTAL to (total ?: -1),
+            DownloadWorker.KEY_BYTES to bytes,
+            DownloadWorker.KEY_TOTAL to total,
         )
-
-    private fun completeAtomically(partial: File, destination: File) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Files.move(
-                partial.toPath(),
-                destination.toPath(),
-                StandardCopyOption.ATOMIC_MOVE,
-                StandardCopyOption.REPLACE_EXISTING,
-            )
-        } else {
-            if (destination.exists() && !destination.delete()) {
-                throw IOException("Could not replace destination")
-            }
-            if (!partial.renameTo(destination)) {
-                throw IOException("Could not finalize download")
-            }
-        }
-    }
 
     companion object {
         const val KEY_TASK_ID = "taskId"
-        const val KEY_SOURCE = "source"
+        const val KEY_SOURCE_PATH = "sourcePath"
         const val KEY_DESTINATION = "destination"
+        const val KEY_METHOD = "method"
+        const val KEY_FIELD_NAME = "fieldName"
         const val KEY_HEADERS_JSON = "headersJson"
         const val KEY_NOTIFICATION_TITLE = "notificationTitle"
         const val KEY_MAX_ATTEMPTS = "maxAttempts"
-        const val KEY_BYTES = "bytesTransferred"
-        const val KEY_TOTAL = "totalBytes"
-        const val KEY_ERROR = "error"
+        const val KEY_ERROR = DownloadWorker.KEY_ERROR
 
         private const val NOTIFICATION_INTERVAL_MS = 500L
-
-        internal fun isRetryableStatus(status: Int): Boolean =
-            status == HttpURLConnection.HTTP_CLIENT_TIMEOUT ||
-                status == 429 ||
-                status in 500..599
     }
 }

@@ -8,6 +8,7 @@ Future<void> main() async {
   final manager = TransferManager(
     engines: [
       AndroidBackgroundDownloadEngine(),
+      AndroidBackgroundUploadEngine(),
       TusTransferEngine(),
       HttpTransferEngine(),
     ],

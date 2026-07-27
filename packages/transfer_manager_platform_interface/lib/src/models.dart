@@ -64,6 +64,42 @@ final class PlatformDownloadRequest {
   };
 }
 
+final class PlatformUploadRequest {
+  const PlatformUploadRequest({
+    required this.taskId,
+    required this.sourcePath,
+    required this.destination,
+    this.method = 'POST',
+    this.fieldName = 'file',
+    this.headers = const {},
+    this.networkPolicy = 'any',
+    this.notificationTitle = 'Uploading file',
+    this.maxAttempts = 5,
+  });
+
+  final String taskId;
+  final String sourcePath;
+  final Uri destination;
+  final String method;
+  final String fieldName;
+  final Map<String, String> headers;
+  final String networkPolicy;
+  final String notificationTitle;
+  final int maxAttempts;
+
+  Map<String, Object?> toMap() => {
+    'taskId': taskId,
+    'sourcePath': sourcePath,
+    'destination': destination.toString(),
+    'method': method,
+    'fieldName': fieldName,
+    'headers': headers,
+    'networkPolicy': networkPolicy,
+    'notificationTitle': notificationTitle,
+    'maxAttempts': maxAttempts,
+  };
+}
+
 final class PlatformTaskSnapshot {
   const PlatformTaskSnapshot({
     required this.taskId,

@@ -66,6 +66,21 @@ final class TransferManagerAndroid extends TransferManagerPlatform {
   }
 
   @override
+  Future<String> enqueueUpload(PlatformUploadRequest request) async {
+    final workId = await methodChannel.invokeMethod<String>(
+      'enqueueUpload',
+      request.toMap(),
+    );
+    if (workId == null) {
+      throw PlatformException(
+        code: 'missing_work_id',
+        message: 'Android did not return a WorkManager identifier',
+      );
+    }
+    return workId;
+  }
+
+  @override
   Future<PlatformTaskSnapshot?> task(String taskId) async {
     final result = await methodChannel.invokeMapMethod<Object?, Object?>(
       'task',

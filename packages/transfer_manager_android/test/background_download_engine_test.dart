@@ -84,6 +84,10 @@ final class _FakePlatform extends TransferManagerPlatform {
   }
 
   @override
+  Future<String> enqueueUpload(PlatformUploadRequest request) async =>
+      throw UnimplementedError();
+
+  @override
   Future<PlatformTaskSnapshot?> task(String taskId) async => request == null
       ? null
       : PlatformTaskSnapshot(

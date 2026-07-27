@@ -5,45 +5,48 @@ import 'package:transfer_manager_platform_interface/transfer_manager_platform_in
 
 import 'method_channel_platform.dart';
 
-/// Bridges core [DownloadRequest] tasks to Android WorkManager.
+/// Bridges simple multipart [UploadRequest] tasks to Android WorkManager.
 ///
-/// Add this before [HttpTransferEngine] in `TransferManager.engines` when
-/// background execution is desired on Android.
-final class AndroidBackgroundDownloadEngine implements TransferEngine {
-  AndroidBackgroundDownloadEngine({TransferManagerPlatform? platform})
+/// A retry restarts the multipart request. Use the foreground TUS engine when
+/// chunk-level resumability is required.
+final class AndroidBackgroundUploadEngine implements TransferEngine {
+  AndroidBackgroundUploadEngine({TransferManagerPlatform? platform})
     : platform = platform ?? TransferManagerAndroid();
 
   final TransferManagerPlatform platform;
 
   @override
-  bool supports(TransferRequest request) => request is DownloadRequest;
+  bool supports(TransferRequest request) => request is UploadRequest;
 
   @override
   Future<void> execute(TransferExecutionContext context) async {
     final request = context.record.request;
-    if (request is! DownloadRequest) {
+    if (request is! UploadRequest) {
       throw TransferProtocolException(
-        'Android background engine cannot execute ${request.runtimeType}',
+        'Android background upload engine cannot execute '
+        '${request.runtimeType}',
       );
     }
     final capabilities = await platform.capabilities();
-    if (!capabilities.backgroundDownloads) {
+    if (!capabilities.backgroundUploads) {
       throw const TransferProtocolException(
-        'Android background downloads are unavailable',
+        'Android background uploads are unavailable',
       );
     }
 
     var snapshot = await platform.task(context.record.id);
     if (context.record.nativeTaskId == null) snapshot = null;
     if (snapshot == null) {
-      final workId = await platform.enqueueDownload(
-        PlatformDownloadRequest(
+      final workId = await platform.enqueueUpload(
+        PlatformUploadRequest(
           taskId: context.record.id,
-          source: request.source,
-          destinationPath: request.destinationPath,
+          sourcePath: request.sourcePath,
+          destination: request.destination,
+          method: request.method,
+          fieldName: request.fieldName,
           headers: request.headers,
           networkPolicy: (request.networkPolicy ?? NetworkPolicy.any).name,
-          notificationTitle: request.notification?.title ?? 'Downloading file',
+          notificationTitle: request.notification?.title ?? 'Uploading file',
           maxAttempts: (request.retryPolicy ?? const RetryPolicy.exponential())
               .maxAttempts,
         ),
@@ -73,7 +76,6 @@ final class AndroidBackgroundDownloadEngine implements TransferEngine {
           throw const TransferCancelledException();
         }
         if (context.control.pauseRequested) {
-          // WorkManager pause/resume is intentionally not advertised yet.
           await platform.cancel(context.record.id);
           throw const TransferPausedException();
         }
@@ -96,7 +98,7 @@ final class AndroidBackgroundDownloadEngine implements TransferEngine {
         return true;
       case PlatformTaskState.failed:
         throw TransferNetworkException(
-          snapshot.error ?? 'Android background download failed',
+          snapshot.error ?? 'Android background upload failed',
           retryable: false,
         );
       case PlatformTaskState.cancelled:
