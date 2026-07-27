@@ -20,7 +20,7 @@ void main() {
         'backgroundDownloads': true,
         'backgroundUploads': false,
         'backgroundTusUploads': true,
-        'pauseResume': false,
+        'pauseResume': true,
         'notifications': true,
         'notificationCancellation': true,
       };
@@ -32,6 +32,7 @@ void main() {
     expect(capabilities.backgroundDownloads, isTrue);
     expect(capabilities.backgroundUploads, isFalse);
     expect(capabilities.backgroundTusUploads, isTrue);
+    expect(capabilities.pauseResume, isTrue);
     expect(capabilities.notificationCancellation, isTrue);
   });
 
@@ -65,6 +66,21 @@ void main() {
     final platform = TransferManagerAndroid(methodChannel: channel);
 
     expect(await platform.requestNotificationPermission(), isTrue);
+  });
+
+  test('forwards pause and resume controls to Android', () async {
+    final calls = <String>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      calls.add(call.method);
+      expect((call.arguments! as Map<Object?, Object?>)['taskId'], 'task-1');
+      return null;
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    await platform.pause('task-1');
+    await platform.resume('task-1');
+
+    expect(calls, ['pause', 'resume']);
   });
 
   test('encodes a durable multipart upload request', () async {

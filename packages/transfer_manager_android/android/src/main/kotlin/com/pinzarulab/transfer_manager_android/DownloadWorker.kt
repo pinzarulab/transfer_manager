@@ -6,7 +6,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
@@ -15,7 +17,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import kotlin.coroutines.coroutineContext
 
 internal class DownloadWorker(
     context: Context,
@@ -47,6 +48,7 @@ internal class DownloadWorker(
         )
 
         return try {
+            waitWhilePaused(taskId, title, partial.length(), null, false)
             download(source, destination, partial, taskId, title)
         } catch (error: IOException) {
             if (runAttemptCount + 1 < maxAttempts) {
@@ -109,13 +111,20 @@ internal class DownloadWorker(
             val responseLength = connection.contentLengthLong
             val total = responseLength.takeIf { it >= 0 }?.plus(offset)
             var transferred = offset
+            total?.let {
+                TransferStorageGuard.requireDownloadCapacity(
+                    destination,
+                    it - transferred,
+                )
+            }
             var lastNotificationAt = 0L
 
             FileOutputStream(partial, resumed).buffered().use { sink ->
                 connection.inputStream.buffered().use { input ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
-                        coroutineContext.ensureActive()
+                        waitWhilePaused(taskId, title, transferred, total, false)
+                        currentCoroutineContext().ensureActive()
                         if (isStopped) throw IOException("Worker stopped")
                         val count = input.read(buffer)
                         if (count < 0) break
@@ -156,6 +165,53 @@ internal class DownloadWorker(
             return Result.success(output)
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private suspend fun waitWhilePaused(
+        taskId: String,
+        title: String,
+        bytes: Long,
+        total: Long?,
+        uploading: Boolean,
+    ) {
+        val pauses = TransferPauseStore(applicationContext)
+        var announced = false
+        while (pauses.isPaused(taskId)) {
+            currentCoroutineContext().ensureActive()
+            if (isStopped) throw IOException("Worker stopped")
+            if (!announced) {
+                setProgress(
+                    workDataOf(
+                        KEY_BYTES to bytes,
+                        KEY_TOTAL to (total ?: -1),
+                        KEY_PAUSED to true,
+                    ),
+                )
+                setForeground(
+                    TransferProgressNotifications.foregroundInfo(
+                        applicationContext,
+                        id,
+                        taskId,
+                        title,
+                        bytes,
+                        total,
+                        uploading,
+                        paused = true,
+                    ),
+                )
+                announced = true
+            }
+            delay(PAUSE_POLL_INTERVAL_MS)
+        }
+        if (announced) {
+            setProgress(
+                workDataOf(
+                    KEY_BYTES to bytes,
+                    KEY_TOTAL to (total ?: -1),
+                    KEY_PAUSED to false,
+                ),
+            )
         }
     }
 
@@ -205,8 +261,10 @@ internal class DownloadWorker(
         const val KEY_BYTES = "bytesTransferred"
         const val KEY_TOTAL = "totalBytes"
         const val KEY_ERROR = "error"
+        const val KEY_PAUSED = "paused"
 
         private const val NOTIFICATION_INTERVAL_MS = 500L
+        private const val PAUSE_POLL_INTERVAL_MS = 500L
 
         internal fun isRetryableStatus(status: Int): Boolean =
             status == HttpURLConnection.HTTP_CLIENT_TIMEOUT ||

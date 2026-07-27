@@ -6,6 +6,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
     <application>
+        <receiver
+            android:name=".TransferNotificationActionReceiver"
+            android:exported="false" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.transfer_manager.fileprovider"

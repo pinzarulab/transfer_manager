@@ -5,8 +5,8 @@ Android implementation of the `transfer_manager` platform contract.
 The native milestone supports durable HTTP downloads, streamed multipart
 uploads, and resumable TUS uploads through WorkManager. It also provides
 foreground progress notifications, network constraints, task reconnection,
-atomic `.part` download completion, and cancellation. Native pause/resume
-actions remain unsupported.
+atomic `.part` download completion, cancellation, and persistent pause/resume
+actions on active notifications.
 
 ## Core integration
 

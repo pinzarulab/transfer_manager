@@ -27,6 +27,16 @@ void main() {
     expect(snapshot.fraction, 0.5);
   });
 
+  test('decodes native paused task state', () {
+    final snapshot = PlatformTaskSnapshot.fromMap({
+      'taskId': 'paused',
+      'state': 'paused',
+      'bytesTransferred': 5,
+    });
+
+    expect(snapshot.state, PlatformTaskState.paused);
+  });
+
   test('encodes multipart upload requests', () {
     final request = PlatformUploadRequest(
       taskId: 'upload-1',

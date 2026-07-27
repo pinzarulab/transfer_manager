@@ -1,3 +1,7 @@
+## 1.0.0
+
+- Added native pause/resume methods and paused task snapshots.
+
 ## 0.2.0
 
 - Added the background TUS upload capability and durable TUS request contract.

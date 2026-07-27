@@ -1,3 +1,10 @@
+## 1.0.0
+
+- Added persistent pause/resume actions to active transfer notifications.
+- Added cooperative pause support across download, multipart, and TUS workers.
+- Added preflight low-storage protection for downloads.
+- Added physical-device persistence and low-storage instrumentation tests.
+
 ## 0.2.0
 
 - Added resumable TUS uploads backed by WorkManager.

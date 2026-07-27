@@ -36,6 +36,13 @@ final class AndroidBackgroundUploadEngine implements TransferEngine {
 
     var snapshot = await platform.task(context.record.id);
     if (context.record.nativeTaskId == null) snapshot = null;
+    if (context.record.nativeTaskId != null &&
+        snapshot != null &&
+        snapshot.state != PlatformTaskState.succeeded &&
+        snapshot.state != PlatformTaskState.failed &&
+        snapshot.state != PlatformTaskState.cancelled) {
+      await platform.resume(context.record.id);
+    }
     if (snapshot == null) {
       final workId = await platform.enqueueUpload(
         PlatformUploadRequest(
@@ -76,7 +83,7 @@ final class AndroidBackgroundUploadEngine implements TransferEngine {
           throw const TransferCancelledException();
         }
         if (context.control.pauseRequested) {
-          await platform.cancel(context.record.id);
+          await platform.pause(context.record.id);
           throw const TransferPausedException();
         }
         if (event != null && await _apply(event, context)) return;
@@ -103,6 +110,8 @@ final class AndroidBackgroundUploadEngine implements TransferEngine {
         );
       case PlatformTaskState.cancelled:
         throw const TransferCancelledException();
+      case PlatformTaskState.paused:
+        return false;
       case PlatformTaskState.enqueued:
       case PlatformTaskState.running:
       case PlatformTaskState.blocked:

@@ -107,4 +107,12 @@ final class TransferManagerAndroid extends TransferManagerPlatform {
   @override
   Future<void> cancel(String taskId) =>
       methodChannel.invokeMethod<void>('cancel', {'taskId': taskId});
+
+  @override
+  Future<void> pause(String taskId) =>
+      methodChannel.invokeMethod<void>('pause', {'taskId': taskId});
+
+  @override
+  Future<void> resume(String taskId) =>
+      methodChannel.invokeMethod<void>('resume', {'taskId': taskId});
 }

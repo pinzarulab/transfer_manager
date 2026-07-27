@@ -1,6 +1,7 @@
 enum PlatformTaskState {
   enqueued,
   running,
+  paused,
   succeeded,
   failed,
   cancelled,

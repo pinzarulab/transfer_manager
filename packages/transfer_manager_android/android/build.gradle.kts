@@ -1,5 +1,5 @@
 group = "com.pinzarulab.transfer_manager_android"
-version = "1.0-SNAPSHOT"
+version = "1.0.0"
 
 buildscript {
     repositories {
@@ -39,6 +39,9 @@ android {
         getByName("test") {
             java.srcDirs("src/test/kotlin")
         }
+        getByName("androidTest") {
+            java.srcDirs("src/androidTest/kotlin")
+        }
     }
 
     defaultConfig {
@@ -68,5 +71,7 @@ dependencies {
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
     testImplementation("org.junit.jupiter:junit-jupiter:5.12.2")
+    androidTestImplementation("androidx.test:core-ktx:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit-ktx:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 }
-

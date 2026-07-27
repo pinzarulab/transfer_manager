@@ -32,6 +32,14 @@ abstract class TransferManagerPlatform extends PlatformInterface {
   Future<PlatformTaskSnapshot?> task(String taskId);
 
   Future<void> cancel(String taskId);
+
+  Future<void> pause(String taskId) async => throw UnsupportedError(
+    'Native pause is unsupported by this platform implementation',
+  );
+
+  Future<void> resume(String taskId) async => throw UnsupportedError(
+    'Native resume is unsupported by this platform implementation',
+  );
 }
 
 final class _UnsupportedPlatform extends TransferManagerPlatform {
@@ -68,4 +76,10 @@ final class _UnsupportedPlatform extends TransferManagerPlatform {
 
   @override
   Future<void> cancel(String taskId) async => _unsupported();
+
+  @override
+  Future<void> pause(String taskId) async => _unsupported();
+
+  @override
+  Future<void> resume(String taskId) async => _unsupported();
 }

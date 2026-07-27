@@ -7,6 +7,7 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -46,6 +47,12 @@ internal class TusUploadWorker(
         )
 
         return try {
+            waitWhilePaused(
+                taskId,
+                title,
+                sessions.get(taskId)?.offset ?: 0,
+                sourceLength,
+            )
             upload(taskId, source, endpoint, title)
         } catch (error: RetryableTusException) {
             retryOrFailure(error.message ?: error.javaClass.simpleName)
@@ -100,6 +107,7 @@ internal class TusUploadWorker(
         RandomAccessFile(source, "r").use { file ->
             file.seek(offset)
             while (offset < sourceLength) {
+                waitWhilePaused(taskId, title, offset, sourceLength)
                 currentCoroutineContext().ensureActive()
                 if (isStopped) throw IOException("Worker stopped")
                 val count = minOf(chunkSize.toLong(), sourceLength - offset).toInt()
@@ -217,6 +225,7 @@ internal class TusUploadWorker(
             connection.outputStream.buffered().use { output ->
                 val buffer = ByteArray(minOf(DEFAULT_BUFFER_SIZE, count))
                 while (written < count) {
+                    waitWhilePaused(taskId, title, offset + written, total)
                     currentCoroutineContext().ensureActive()
                     if (isStopped) throw IOException("Worker stopped")
                     val read = file.read(buffer, 0, minOf(buffer.size, count - written))
@@ -251,6 +260,52 @@ internal class TusUploadWorker(
             return acknowledged
         } finally {
             connection.disconnect()
+        }
+    }
+
+    private suspend fun waitWhilePaused(
+        taskId: String,
+        title: String,
+        bytes: Long,
+        total: Long,
+    ) {
+        val pauses = TransferPauseStore(applicationContext)
+        var announced = false
+        while (pauses.isPaused(taskId)) {
+            currentCoroutineContext().ensureActive()
+            if (isStopped) throw IOException("Worker stopped")
+            if (!announced) {
+                setProgress(
+                    workDataOf(
+                        DownloadWorker.KEY_BYTES to bytes,
+                        DownloadWorker.KEY_TOTAL to total,
+                        DownloadWorker.KEY_PAUSED to true,
+                    ),
+                )
+                setForeground(
+                    TransferProgressNotifications.foregroundInfo(
+                        applicationContext,
+                        id,
+                        taskId,
+                        title,
+                        bytes,
+                        total,
+                        true,
+                        paused = true,
+                    ),
+                )
+                announced = true
+            }
+            delay(PAUSE_POLL_INTERVAL_MS)
+        }
+        if (announced) {
+            setProgress(
+                workDataOf(
+                    DownloadWorker.KEY_BYTES to bytes,
+                    DownloadWorker.KEY_TOTAL to total,
+                    DownloadWorker.KEY_PAUSED to false,
+                ),
+            )
         }
     }
 
@@ -337,5 +392,6 @@ internal class TusUploadWorker(
 
         private const val DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024
         private const val NOTIFICATION_INTERVAL_MS = 500L
+        private const val PAUSE_POLL_INTERVAL_MS = 500L
     }
 }

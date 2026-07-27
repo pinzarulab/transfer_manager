@@ -5,11 +5,11 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository contains the **0.5 transfer core** and the first federated
+This repository contains the **1.0 transfer core** and the first federated
 Android packages. Android background downloads, multipart uploads, and
-resumable TUS uploads are available as explicit WorkManager engines.
-Pause/resume notification actions, iOS background URLSession, S3 multipart,
-and Flutter widgets remain future milestones.
+resumable TUS uploads are available as explicit WorkManager engines, including
+persistent pause/resume notification actions. iOS background URLSession, S3
+multipart, and Flutter widgets remain future milestones.
 
 ## What works
 
@@ -29,6 +29,8 @@ and Flutter widgets remain future milestones.
 - Android WorkManager downloads with foreground progress notifications
 - Android WorkManager multipart uploads with managed-source integration
 - Android WorkManager TUS uploads with persistent sessions and chunk resumption
+- Persistent pause/resume actions on active Android transfer notifications
+- Android low-storage preflight protection and device durability tests
 
 ## Android background downloads
 
@@ -57,8 +59,8 @@ notification—even while the app is visible—and tapping it opens the file usi
 a temporary `FileProvider` permission. Multipart uploads can also run in
 WorkManager; retrying them restarts the request. Native TUS uploads persist the
 server-created URL and acknowledged offset, then reconcile and continue in
-bounded chunks after retries or process restarts. Native pause/resume is still
-unsupported.
+bounded chunks after retries or process restarts. Active native transfers can
+be paused or resumed from their notification or through the platform API.
 
 On Android 13+, call
 `TransferManagerAndroid().requestNotificationPermission()` from a visible

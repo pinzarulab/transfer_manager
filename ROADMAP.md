@@ -26,19 +26,23 @@
 - Streamed multipart background uploads
 - Cancellation, constraints, range resumption, and process reconnection
 
-## 0.5 — resumable Android uploads (this repository)
+## 0.5 — resumable Android uploads
 
 - Native WorkManager TUS uploads
 - Persistent upload URLs, offsets, and source fingerprints
 - Chunk streaming and server-offset reconciliation
 - Expired-session recreation and completion notifications
-- Remaining: pause/resume notification actions
-- Remaining: device-level process-death and low-storage instrumentation tests
 
-## 1.0 — mobile background engine
+## 1.0 — Android durability (this repository)
+
+- Persistent pause/resume notification actions
+- Cooperative pause across download, multipart, and TUS workers
+- Low-storage download preflight protection
+- Physical-device persistence and low-storage instrumentation tests
+
+## Future mobile expansion
 
 - iOS background URLSession and relaunch reconciliation
-- Android/iOS capability adapters
 - SQLite migrations and retention policies
 - Optional Flutter widget package
 

@@ -5,14 +5,15 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.UUID
-import kotlin.coroutines.coroutineContext
 
 internal class UploadWorker(
     context: Context,
@@ -43,6 +44,7 @@ internal class UploadWorker(
         )
 
         return try {
+            waitWhilePaused(taskId, title, 0, source.length())
             upload(taskId, source, destination, title)
         } catch (error: IOException) {
             if (runAttemptCount + 1 < maxAttempts) {
@@ -99,7 +101,8 @@ internal class UploadWorker(
                 source.inputStream().buffered().use { input ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
-                        coroutineContext.ensureActive()
+                        waitWhilePaused(taskId, title, transferred, sourceLength)
+                        currentCoroutineContext().ensureActive()
                         if (isStopped) throw IOException("Worker stopped")
                         val count = input.read(buffer)
                         if (count < 0) break
@@ -153,6 +156,52 @@ internal class UploadWorker(
         }
     }
 
+    private suspend fun waitWhilePaused(
+        taskId: String,
+        title: String,
+        bytes: Long,
+        total: Long,
+    ) {
+        val pauses = TransferPauseStore(applicationContext)
+        var announced = false
+        while (pauses.isPaused(taskId)) {
+            currentCoroutineContext().ensureActive()
+            if (isStopped) throw IOException("Worker stopped")
+            if (!announced) {
+                setProgress(
+                    workDataOf(
+                        DownloadWorker.KEY_BYTES to bytes,
+                        DownloadWorker.KEY_TOTAL to total,
+                        DownloadWorker.KEY_PAUSED to true,
+                    ),
+                )
+                setForeground(
+                    TransferProgressNotifications.foregroundInfo(
+                        applicationContext,
+                        id,
+                        taskId,
+                        title,
+                        bytes,
+                        total,
+                        true,
+                        paused = true,
+                    ),
+                )
+                announced = true
+            }
+            delay(PAUSE_POLL_INTERVAL_MS)
+        }
+        if (announced) {
+            setProgress(
+                workDataOf(
+                    DownloadWorker.KEY_BYTES to bytes,
+                    DownloadWorker.KEY_TOTAL to total,
+                    DownloadWorker.KEY_PAUSED to false,
+                ),
+            )
+        }
+    }
+
     private fun retryOrFailure(message: String): Result {
         val maxAttempts = inputData.getInt(KEY_MAX_ATTEMPTS, 5).coerceAtLeast(1)
         return if (runAttemptCount + 1 < maxAttempts) {
@@ -183,5 +232,6 @@ internal class UploadWorker(
         const val KEY_ERROR = DownloadWorker.KEY_ERROR
 
         private const val NOTIFICATION_INTERVAL_MS = 500L
+        private const val PAUSE_POLL_INTERVAL_MS = 500L
     }
 }

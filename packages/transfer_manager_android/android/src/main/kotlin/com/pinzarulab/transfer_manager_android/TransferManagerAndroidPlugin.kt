@@ -105,7 +105,7 @@ class TransferManagerAndroidPlugin :
                     "backgroundDownloads" to true,
                     "backgroundUploads" to true,
                     "backgroundTusUploads" to true,
-                    "pauseResume" to false,
+                    "pauseResume" to true,
                     "notifications" to true,
                     "notificationCancellation" to true,
                 ),
@@ -119,6 +119,8 @@ class TransferManagerAndroidPlugin :
             "enqueueTusUpload" -> enqueueTusUpload(call, result)
             "task" -> queryTask(call.argument<String>("taskId"), result)
             "cancel" -> cancel(call.argument<String>("taskId"), result)
+            "pause" -> setPaused(call.argument<String>("taskId"), true, result)
+            "resume" -> setPaused(call.argument<String>("taskId"), false, result)
             else -> result.notImplemented()
         }
     }
@@ -241,6 +243,7 @@ class TransferManagerAndroidPlugin :
             .addTag(TAG_ALL)
             .addTag(tagFor(taskId))
             .build()
+        TransferPauseStore(context).clear(taskId)
         workManager.enqueueUniqueWork(
             uniqueName(taskId),
             ExistingWorkPolicy.KEEP,
@@ -320,6 +323,7 @@ class TransferManagerAndroidPlugin :
             .addTag(TAG_ALL)
             .addTag(tagFor(taskId))
             .build()
+        TransferPauseStore(context).clear(taskId)
         workManager.enqueueUniqueWork(
             uniqueName(taskId),
             ExistingWorkPolicy.KEEP,
@@ -406,6 +410,7 @@ class TransferManagerAndroidPlugin :
             .addTag(TAG_ALL)
             .addTag(tagFor(taskId))
             .build()
+        TransferPauseStore(context).clear(taskId)
         workManager.enqueueUniqueWork(
             uniqueName(taskId),
             ExistingWorkPolicy.KEEP,
@@ -445,6 +450,20 @@ class TransferManagerAndroidPlugin :
             return
         }
         workManager.cancelUniqueWork(uniqueName(taskId))
+        TransferPauseStore(context).clear(taskId)
+        result.success(null)
+    }
+
+    private fun setPaused(
+        taskId: String?,
+        paused: Boolean,
+        result: MethodChannel.Result,
+    ) {
+        if (taskId == null) {
+            result.error("invalid_task", "taskId is required", null)
+            return
+        }
+        TransferPauseStore(context).setPaused(taskId, paused)
         result.success(null)
     }
 
@@ -484,9 +503,10 @@ class TransferManagerAndroidPlugin :
         val progressTotal = progress.getLong(DownloadWorker.KEY_TOTAL, -1)
         val outputBytes = outputData.getLong(DownloadWorker.KEY_BYTES, progressBytes)
         val outputTotal = outputData.getLong(DownloadWorker.KEY_TOTAL, progressTotal)
+        val paused = progress.getBoolean(DownloadWorker.KEY_PAUSED, false)
         return mapOf(
             "taskId" to taskId,
-            "state" to state.name.lowercase().replace("enqueued", "enqueued"),
+            "state" to if (paused) "paused" else state.name.lowercase(),
             "bytesTransferred" to outputBytes,
             "totalBytes" to outputTotal.takeIf { it >= 0 },
             "error" to outputData.getString(DownloadWorker.KEY_ERROR),

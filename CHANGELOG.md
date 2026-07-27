@@ -1,3 +1,13 @@
+## 1.0.0
+
+- Added persistent Android pause/resume controls to active transfer
+  notifications for downloads, multipart uploads, and TUS uploads.
+- Added native pause/resume methods and paused task snapshots to the federated
+  platform contract.
+- Added preflight low-storage protection for background downloads.
+- Added physical-device instrumentation coverage for persistent restoration
+  state and low-storage failures.
+
 ## 0.5.0
 
 - Added native Android resumable TUS uploads through WorkManager.
