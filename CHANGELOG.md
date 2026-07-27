@@ -1,3 +1,12 @@
+## 0.5.0
+
+- Added native Android resumable TUS uploads through WorkManager.
+- Persisted native TUS session URLs, acknowledged offsets, and source
+  fingerprints across retries and process restarts.
+- Added bounded chunk streaming, server-offset reconciliation, expired-session
+  recreation, source-change protection, and completion notifications.
+- Added the Android background TUS engine adapter and platform capability.
+
 ## 0.4.0
 
 - Added the federated platform-interface and Android implementation packages.

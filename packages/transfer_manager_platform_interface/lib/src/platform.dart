@@ -27,6 +27,8 @@ abstract class TransferManagerPlatform extends PlatformInterface {
 
   Future<String> enqueueUpload(PlatformUploadRequest request);
 
+  Future<String> enqueueTusUpload(PlatformTusUploadRequest request);
+
   Future<PlatformTaskSnapshot?> task(String taskId);
 
   Future<void> cancel(String taskId);
@@ -55,6 +57,10 @@ final class _UnsupportedPlatform extends TransferManagerPlatform {
 
   @override
   Future<String> enqueueUpload(PlatformUploadRequest request) async =>
+      _unsupported();
+
+  @override
+  Future<String> enqueueTusUpload(PlatformTusUploadRequest request) async =>
       _unsupported();
 
   @override

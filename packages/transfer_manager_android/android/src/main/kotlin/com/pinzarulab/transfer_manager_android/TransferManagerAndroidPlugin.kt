@@ -104,6 +104,7 @@ class TransferManagerAndroidPlugin :
                 mapOf(
                     "backgroundDownloads" to true,
                     "backgroundUploads" to true,
+                    "backgroundTusUploads" to true,
                     "pauseResume" to false,
                     "notifications" to true,
                     "notificationCancellation" to true,
@@ -115,6 +116,7 @@ class TransferManagerAndroidPlugin :
             "requestNotificationPermission" -> requestNotificationPermission(result)
             "enqueueDownload" -> enqueueDownload(call, result)
             "enqueueUpload" -> enqueueUpload(call, result)
+            "enqueueTusUpload" -> enqueueTusUpload(call, result)
             "task" -> queryTask(call.argument<String>("taskId"), result)
             "cancel" -> cancel(call.argument<String>("taskId"), result)
             else -> result.notImplemented()
@@ -306,6 +308,92 @@ class TransferManagerAndroidPlugin :
                     UploadWorker.KEY_NOTIFICATION_TITLE to
                         (call.argument<String>("notificationTitle") ?: "Uploading file"),
                     UploadWorker.KEY_MAX_ATTEMPTS to
+                        (call.argument<Int>("maxAttempts") ?: 5).coerceAtLeast(1),
+                ),
+            )
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(networkType)
+                    .build(),
+            )
+            .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 10, TimeUnit.SECONDS)
+            .addTag(TAG_ALL)
+            .addTag(tagFor(taskId))
+            .build()
+        workManager.enqueueUniqueWork(
+            uniqueName(taskId),
+            ExistingWorkPolicy.KEEP,
+            request,
+        )
+        registry.put(taskId, request.id)
+        observe(taskId, request.id)
+        result.success(request.id.toString())
+    }
+
+    private fun enqueueTusUpload(call: MethodCall, result: MethodChannel.Result) {
+        val taskId = call.argument<String>("taskId")
+        val sourcePath = call.argument<String>("sourcePath")
+        val endpoint = call.argument<String>("endpoint")
+        if (
+            taskId.isNullOrBlank() ||
+            sourcePath.isNullOrBlank() ||
+            endpoint.isNullOrBlank()
+        ) {
+            result.error(
+                "invalid_request",
+                "taskId, sourcePath, and endpoint are required",
+                null,
+            )
+            return
+        }
+        if (!File(sourcePath).isFile) {
+            result.error("source_missing", "Upload source does not exist", null)
+            return
+        }
+        val chunkSize = call.argument<Int>("chunkSize") ?: 5 * 1024 * 1024
+        if (chunkSize <= 0) {
+            result.error("invalid_chunk_size", "TUS chunkSize must be positive", null)
+            return
+        }
+        val metadata = call.argument<Map<String, String>>("metadata").orEmpty()
+        val invalidMetadataKey = metadata.keys.firstOrNull {
+            !it.matches(Regex("^[A-Za-z0-9_-]+$"))
+        }
+        if (invalidMetadataKey != null) {
+            result.error(
+                "invalid_metadata",
+                "TUS metadata key $invalidMetadataKey is invalid",
+                null,
+            )
+            return
+        }
+        val headers = call.argument<Map<String, String>>("headers").orEmpty()
+        val sensitive = headers.keys.firstOrNull(TransferSecurity::isSensitiveHeader)
+        if (sensitive != null) {
+            result.error(
+                "sensitive_header",
+                "$sensitive cannot be persisted in WorkManager input",
+                null,
+            )
+            return
+        }
+        val networkPolicy = call.argument<String>("networkPolicy") ?: "any"
+        val networkType = when (networkPolicy) {
+            "unmetered", "wifiOnly" -> NetworkType.UNMETERED
+            else -> NetworkType.CONNECTED
+        }
+        val request = OneTimeWorkRequestBuilder<TusUploadWorker>()
+            .setInputData(
+                workDataOf(
+                    TusUploadWorker.KEY_TASK_ID to taskId,
+                    TusUploadWorker.KEY_SOURCE_PATH to sourcePath,
+                    TusUploadWorker.KEY_ENDPOINT to endpoint,
+                    TusUploadWorker.KEY_CHUNK_SIZE to chunkSize,
+                    TusUploadWorker.KEY_METADATA_JSON to JSONObject(metadata).toString(),
+                    TusUploadWorker.KEY_HEADERS_JSON to JSONObject(headers).toString(),
+                    TusUploadWorker.KEY_NOTIFICATION_TITLE to
+                        (call.argument<String>("notificationTitle") ?: "Uploading file"),
+                    TusUploadWorker.KEY_MAX_ATTEMPTS to
                         (call.argument<Int>("maxAttempts") ?: 5).coerceAtLeast(1),
                 ),
             )

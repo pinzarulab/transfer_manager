@@ -19,6 +19,7 @@ void main() {
       return {
         'backgroundDownloads': true,
         'backgroundUploads': false,
+        'backgroundTusUploads': true,
         'pauseResume': false,
         'notifications': true,
         'notificationCancellation': true,
@@ -30,6 +31,7 @@ void main() {
 
     expect(capabilities.backgroundDownloads, isTrue);
     expect(capabilities.backgroundUploads, isFalse);
+    expect(capabilities.backgroundTusUploads, isTrue);
     expect(capabilities.notificationCancellation, isTrue);
   });
 
@@ -85,6 +87,30 @@ void main() {
     );
 
     expect(workId, 'upload-work-1');
+  });
+
+  test('encodes a durable TUS upload request', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'enqueueTusUpload');
+      final arguments = call.arguments! as Map<Object?, Object?>;
+      expect(arguments['sourcePath'], '/files/video.mp4');
+      expect(arguments['chunkSize'], 1024);
+      expect(arguments['metadata'], {'filename': 'video.mp4'});
+      return 'tus-work-1';
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    final workId = await platform.enqueueTusUpload(
+      PlatformTusUploadRequest(
+        taskId: 'tus-1',
+        sourcePath: '/files/video.mp4',
+        endpoint: Uri.parse('https://example.com/files'),
+        chunkSize: 1024,
+        metadata: const {'filename': 'video.mp4'},
+      ),
+    );
+
+    expect(workId, 'tus-work-1');
   });
 
   test('registerWith installs the Android implementation', () {

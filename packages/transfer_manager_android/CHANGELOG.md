@@ -1,3 +1,10 @@
+## 0.2.0
+
+- Added resumable TUS uploads backed by WorkManager.
+- Persisted upload URLs, acknowledged offsets, and source fingerprints.
+- Added bounded chunk streaming, offset reconciliation, session recreation,
+  progress/completion notifications, and the core TUS engine adapter.
+
 ## 0.1.0
 
 - Initial WorkManager-backed background downloads.

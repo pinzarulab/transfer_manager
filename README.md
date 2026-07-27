@@ -5,11 +5,11 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository contains the **0.3 foreground core** and the first federated
-Android packages. Android background downloads and simple multipart uploads
-are available as explicit WorkManager engines; native TUS, pause/resume, iOS
-background URLSession, S3 multipart, and Flutter widgets remain future
-milestones.
+This repository contains the **0.5 transfer core** and the first federated
+Android packages. Android background downloads, multipart uploads, and
+resumable TUS uploads are available as explicit WorkManager engines.
+Pause/resume notification actions, iOS background URLSession, S3 multipart,
+and Flutter widgets remain future milestones.
 
 ## What works
 
@@ -28,6 +28,7 @@ milestones.
 - Throttled progress with exponentially smoothed speed and ETA
 - Android WorkManager downloads with foreground progress notifications
 - Android WorkManager multipart uploads with managed-source integration
+- Android WorkManager TUS uploads with persistent sessions and chunk resumption
 
 ## Android background downloads
 
@@ -39,6 +40,7 @@ Android engine before the foreground HTTP fallback:
 final manager = TransferManager(
   engines: [
     AndroidBackgroundDownloadEngine(),
+    AndroidBackgroundTusUploadEngine(),
     AndroidBackgroundUploadEngine(),
     TusTransferEngine(),
     HttpTransferEngine(),
@@ -53,8 +55,10 @@ completion. Persisted `ETag`/`Last-Modified` validators protect resumed files
 from remote-resource changes. Successful downloads post a completion
 notification—even while the app is visible—and tapping it opens the file using
 a temporary `FileProvider` permission. Multipart uploads can also run in
-WorkManager; retrying them restarts the request, while TUS remains the
-resumable-upload option. Native pause/resume is still unsupported.
+WorkManager; retrying them restarts the request. Native TUS uploads persist the
+server-created URL and acknowledged offset, then reconcile and continue in
+bounded chunks after retries or process restarts. Native pause/resume is still
+unsupported.
 
 On Android 13+, call
 `TransferManagerAndroid().requestNotificationPermission()` from a visible
@@ -145,9 +149,9 @@ with SQLite without changing the manager API.
 
 ## Platform boundary
 
-`platformCapabilities` currently reports foreground-only behavior. Native
-packages should provide durable OS task identifiers, lifecycle reconnection,
-network/charging constraints, and notifications, then report only the
-capabilities actually supported on that platform.
+The federated platform interface reports each native engine independently.
+Android currently advertises durable background downloads, multipart uploads,
+TUS uploads, notifications, and notification cancellation. Future platform
+packages should report only the capabilities they actually support.
 
 See [ROADMAP.md](ROADMAP.md) for the staged path to the full federated plugin.

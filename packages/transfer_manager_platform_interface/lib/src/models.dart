@@ -12,6 +12,7 @@ final class PlatformTransferCapabilities {
   const PlatformTransferCapabilities({
     required this.backgroundDownloads,
     required this.backgroundUploads,
+    this.backgroundTusUploads = false,
     required this.pauseResume,
     required this.notifications,
     required this.notificationCancellation,
@@ -19,6 +20,7 @@ final class PlatformTransferCapabilities {
 
   final bool backgroundDownloads;
   final bool backgroundUploads;
+  final bool backgroundTusUploads;
   final bool pauseResume;
   final bool notifications;
   final bool notificationCancellation;
@@ -27,6 +29,7 @@ final class PlatformTransferCapabilities {
       PlatformTransferCapabilities(
         backgroundDownloads: map['backgroundDownloads'] as bool? ?? false,
         backgroundUploads: map['backgroundUploads'] as bool? ?? false,
+        backgroundTusUploads: map['backgroundTusUploads'] as bool? ?? false,
         pauseResume: map['pauseResume'] as bool? ?? false,
         notifications: map['notifications'] as bool? ?? false,
         notificationCancellation:
@@ -93,6 +96,42 @@ final class PlatformUploadRequest {
     'destination': destination.toString(),
     'method': method,
     'fieldName': fieldName,
+    'headers': headers,
+    'networkPolicy': networkPolicy,
+    'notificationTitle': notificationTitle,
+    'maxAttempts': maxAttempts,
+  };
+}
+
+final class PlatformTusUploadRequest {
+  const PlatformTusUploadRequest({
+    required this.taskId,
+    required this.sourcePath,
+    required this.endpoint,
+    this.chunkSize = 5 * 1024 * 1024,
+    this.metadata = const {},
+    this.headers = const {},
+    this.networkPolicy = 'any',
+    this.notificationTitle = 'Uploading file',
+    this.maxAttempts = 5,
+  });
+
+  final String taskId;
+  final String sourcePath;
+  final Uri endpoint;
+  final int chunkSize;
+  final Map<String, String> metadata;
+  final Map<String, String> headers;
+  final String networkPolicy;
+  final String notificationTitle;
+  final int maxAttempts;
+
+  Map<String, Object?> toMap() => {
+    'taskId': taskId,
+    'sourcePath': sourcePath,
+    'endpoint': endpoint.toString(),
+    'chunkSize': chunkSize,
+    'metadata': metadata,
     'headers': headers,
     'networkPolicy': networkPolicy,
     'notificationTitle': notificationTitle,

@@ -13,19 +13,26 @@
 - Persisted session URL and offset reconciliation
 - Chunk retry without restarting the file
 
-## 0.3 — managed upload sources (this repository)
+## 0.3 — managed upload sources
 
 - Atomic copies into package-managed storage
 - Restart-safe persisted source paths
 - Safe cleanup and retry retention
 
-## 0.5 — Android durability (in progress)
+## 0.4 — initial Android durability
 
-- Implemented: federated platform contract
-- Implemented: WorkManager background downloads and foreground notifications
-- Implemented: streamed multipart background uploads
-- Implemented: cancellation, constraints, resumption, and reconnection
-- Remaining: native TUS and pause/resume notification actions
+- Federated Android platform contract
+- WorkManager background downloads and foreground notifications
+- Streamed multipart background uploads
+- Cancellation, constraints, range resumption, and process reconnection
+
+## 0.5 — resumable Android uploads (this repository)
+
+- Native WorkManager TUS uploads
+- Persistent upload URLs, offsets, and source fingerprints
+- Chunk streaming and server-offset reconciliation
+- Expired-session recreation and completion notifications
+- Remaining: pause/resume notification actions
 - Remaining: device-level process-death and low-storage instrumentation tests
 
 ## 1.0 — mobile background engine
