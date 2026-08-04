@@ -1,3 +1,8 @@
+## 2.0.0
+
+- Added platform-neutral destination decoding and notification taps.
+- Added native document preview and reveal actions.
+
 ## 1.5.0
 
 - Initial background URLSession implementation for downloads and multipart

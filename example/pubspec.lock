@@ -180,7 +180,7 @@ packages:
     source: hosted
     version: "1.9.1"
   path_provider:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: path_provider
       sha256: a7f4874f987173da295a61c181b8ee71dab59b332a486b391babf26a1b884825
@@ -313,33 +313,40 @@ packages:
     source: hosted
     version: "0.7.11"
   transfer_manager:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       path: ".."
       relative: true
     source: path
-    version: "1.5.0"
+    version: "2.0.0"
   transfer_manager_android:
-    dependency: "direct main"
+    dependency: "direct overridden"
     description:
       path: "../packages/transfer_manager_android"
       relative: true
     source: path
-    version: "1.0.0"
-  transfer_manager_ios:
+    version: "2.0.0"
+  transfer_manager_flutter:
     dependency: "direct main"
+    description:
+      path: "../packages/transfer_manager_flutter"
+      relative: true
+    source: path
+    version: "2.0.0"
+  transfer_manager_ios:
+    dependency: "direct overridden"
     description:
       path: "../packages/transfer_manager_ios"
       relative: true
     source: path
-    version: "1.5.0"
+    version: "2.0.0"
   transfer_manager_platform_interface:
     dependency: "direct overridden"
     description:
       path: "../packages/transfer_manager_platform_interface"
       relative: true
     source: path
-    version: "1.0.0"
+    version: "2.0.0"
   typed_data:
     dependency: transitive
     description:

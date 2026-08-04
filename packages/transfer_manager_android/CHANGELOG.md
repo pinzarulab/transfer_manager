@@ -1,3 +1,9 @@
+## 2.0.0
+
+- Added platform-neutral destination decoding.
+- Added warm/cold notification-tap persistence and delivery.
+- Added native open and Downloads reveal actions.
+
 ## 1.0.0
 
 - Added persistent pause/resume actions to active transfer notifications.

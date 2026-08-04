@@ -386,6 +386,9 @@ internal class DownloadWorker(
                 false
             }
 
+        internal fun publicDownloadsDestination(fileName: String): String =
+            "$DOWNLOADS_SCHEME:/${Uri.encode(fileName)}"
+
         internal fun publicDownloadFileName(destination: String): String? {
             if (!isPublicDownloadsDestination(destination)) return null
             val uri = URI(destination)

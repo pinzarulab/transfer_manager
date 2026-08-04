@@ -58,6 +58,9 @@ class TransferManagerAndroidPlugin :
         )
         methods.setMethodCallHandler(this)
         events.setStreamHandler(this)
+        TransferNotificationTapStore.listener = { payload ->
+            methods.invokeMethod("notificationTapped", payload)
+        }
     }
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
@@ -65,6 +68,7 @@ class TransferManagerAndroidPlugin :
         events.setStreamHandler(null)
         removeObservers()
         eventSink = null
+        TransferNotificationTapStore.listener = null
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
@@ -108,12 +112,17 @@ class TransferManagerAndroidPlugin :
                     "pauseResume" to true,
                     "notifications" to true,
                     "notificationCancellation" to true,
+                    "notificationTaps" to true,
+                    "openArtifacts" to true,
+                    "revealArtifacts" to true,
                 ),
             )
             "notificationsEnabled" -> result.success(
                 NotificationManagerCompat.from(context).areNotificationsEnabled(),
             )
             "requestNotificationPermission" -> requestNotificationPermission(result)
+            "takeInitialNotificationTap" ->
+                result.success(TransferNotificationTapStore.take(context))
             "enqueueDownload" -> enqueueDownload(call, result)
             "enqueueUpload" -> enqueueUpload(call, result)
             "enqueueTusUpload" -> enqueueTusUpload(call, result)
@@ -121,6 +130,8 @@ class TransferManagerAndroidPlugin :
             "cancel" -> cancel(call.argument<String>("taskId"), result)
             "pause" -> setPaused(call.argument<String>("taskId"), true, result)
             "resume" -> setPaused(call.argument<String>("taskId"), false, result)
+            "open" -> artifactAction(call, reveal = false, result)
+            "reveal" -> artifactAction(call, reveal = true, result)
             else -> result.notImplemented()
         }
     }
@@ -193,10 +204,25 @@ class TransferManagerAndroidPlugin :
     private fun enqueueDownload(call: MethodCall, result: MethodChannel.Result) {
         val taskId = call.argument<String>("taskId")
         val source = call.argument<String>("source")
-        val destination = call.argument<String>("destinationPath")
-        if (taskId.isNullOrBlank() || source.isNullOrBlank() || destination.isNullOrBlank()) {
-            result.error("invalid_request", "taskId, source, and destinationPath are required", null)
+        val destinationMap = call.argument<Map<String, String>>("destination")
+        val destinationKind = destinationMap?.get("kind")
+        val destinationValue = destinationMap?.get("value")
+        if (
+            taskId.isNullOrBlank() ||
+            source.isNullOrBlank() ||
+            destinationKind.isNullOrBlank() ||
+            destinationValue.isNullOrBlank()
+        ) {
+            result.error("invalid_request", "taskId, source, and destination are required", null)
             return
+        }
+        val destination = when (destinationKind) {
+            "downloads" -> DownloadWorker.publicDownloadsDestination(destinationValue)
+            "file" -> destinationValue
+            else -> {
+                result.error("invalid_destination", "Unknown destination kind", null)
+                return
+            }
         }
         if (DownloadWorker.isPublicDownloadsDestination(destination)) {
             if (DownloadWorker.publicDownloadFileName(destination) == null) {
@@ -472,6 +498,31 @@ class TransferManagerAndroidPlugin :
         }
         TransferPauseStore(context).setPaused(taskId, paused)
         result.success(null)
+    }
+
+    private fun artifactAction(
+        call: MethodCall,
+        reveal: Boolean,
+        result: MethodChannel.Result,
+    ) {
+        val destination = call.argument<Map<String, String>>("destination")
+        val kind = destination?.get("kind")
+        val value = destination?.get("value")
+        if (kind.isNullOrBlank() || value.isNullOrBlank()) {
+            result.error("invalid_destination", "destination is required", null)
+            return
+        }
+        runCatching {
+            if (reveal) {
+                TransferArtifactActions.reveal(context, kind, value)
+            } else {
+                TransferArtifactActions.open(context, kind, value)
+            }
+        }.onSuccess {
+            result.success(null)
+        }.onFailure {
+            result.error("artifact_action_failed", it.message, null)
+        }
     }
 
     private fun observe(taskId: String, workId: UUID) {

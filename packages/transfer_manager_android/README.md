@@ -56,8 +56,7 @@ Android 10 and newer, use the MediaStore-backed destination helper:
 ```dart
 DownloadRequest(
   source: Uri.parse('https://example.com/report.pdf'),
-  destinationPath:
-      AndroidBackgroundDownloadEngine.downloadsDestination('report.pdf'),
+  destination: const TransferDestination.downloads('report.pdf'),
 );
 ```
 

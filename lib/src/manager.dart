@@ -15,6 +15,7 @@ final class TransferManager {
     TransferAuthProvider? authProvider,
     this.configuration = const TransferConfiguration(),
     List<TransferEngine>? engines,
+    this.taskActions,
   }) : storage = storage ?? InMemoryTransferStorage(),
        authProvider = authProvider == null
            ? null
@@ -25,6 +26,7 @@ final class TransferManager {
   final TransferAuthProvider? authProvider;
   final TransferConfiguration configuration;
   final List<TransferEngine> _engines;
+  final TransferTaskActions? taskActions;
   final Map<String, TransferRecord> _records = {};
   final Map<String, TransferTask> _tasks = {};
   final Map<String, TransferControl> _controls = {};
@@ -468,6 +470,8 @@ final class TransferTask {
       StreamController<TransferEvent>.broadcast();
 
   Stream<TransferEvent> get events => _events.stream;
+  TransferRequest get request => _manager._records[id]!.request;
+  DateTime get createdAt => _manager._records[id]!.createdAt;
   TransferState get state => _manager._records[id]!.state;
   TransferProgress get progress {
     final record = _manager._records[id]!;
@@ -482,6 +486,30 @@ final class TransferTask {
   Future<void> resume() => _manager.resume(id);
   Future<void> cancel() => _manager.cancel(id);
   Future<void> retry() => _manager.retry(id);
+  Future<void> open() {
+    final actions = _manager.taskActions;
+    if (actions == null) {
+      throw UnsupportedError(
+        'No TransferTaskActions implementation configured',
+      );
+    }
+    return actions.open(_manager._records[id]!.copy());
+  }
+
+  Future<void> reveal() {
+    final actions = _manager.taskActions;
+    if (actions == null) {
+      throw UnsupportedError(
+        'No TransferTaskActions implementation configured',
+      );
+    }
+    return actions.reveal(_manager._records[id]!.copy());
+  }
+}
+
+abstract interface class TransferTaskActions {
+  Future<void> open(TransferRecord record);
+  Future<void> reveal(TransferRecord record);
 }
 
 bool _isRecoverable(TransferState state) => switch (state) {

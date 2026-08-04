@@ -65,11 +65,29 @@ void main() {
     final task = manager.task('restored')!;
     await _waitFor(task, TransferState.completed);
   });
+
+  test('task open and reveal delegate completed artifact actions', () async {
+    final actions = _FakeTaskActions();
+    final manager = TransferManager(
+      engines: [_FakeEngine()],
+      taskActions: actions,
+    );
+    addTearDown(manager.close);
+    await manager.initialize();
+    final task = await manager.enqueue(_request('artifact'));
+    await _waitFor(task, TransferState.completed);
+
+    await task.open();
+    await task.reveal();
+
+    expect(actions.opened, [task.id]);
+    expect(actions.revealed, [task.id]);
+  });
 }
 
 DownloadRequest _request(String name) => DownloadRequest(
   source: Uri.parse('https://$name.example/file'),
-  destinationPath: '/unused/$name',
+  destination: TransferDestination.file('/unused/$name'),
 );
 
 Future<void> _waitFor(TransferTask task, TransferState state) async {
@@ -124,4 +142,15 @@ final class _FakeEngine implements TransferEngine {
       active--;
     }
   }
+}
+
+final class _FakeTaskActions implements TransferTaskActions {
+  final List<String> opened = [];
+  final List<String> revealed = [];
+
+  @override
+  Future<void> open(TransferRecord record) async => opened.add(record.id);
+
+  @override
+  Future<void> reveal(TransferRecord record) async => revealed.add(record.id);
 }

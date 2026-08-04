@@ -40,7 +40,7 @@
 - Low-storage download preflight protection
 - Physical-device persistence and low-storage instrumentation tests
 
-## 1.5 — iOS durability (this repository)
+## 1.5 — iOS durability
 
 - Federated iOS package
 - Background URLSession downloads and file-backed multipart uploads
@@ -48,6 +48,14 @@
 - Pause/resume, cancellation, bounded retries, progress, and notifications
 - CocoaPods and Swift Package Manager integration
 - Foreground TUS fallback
+
+## 2.0 — unified Flutter workflow (this repository)
+
+- Platform-neutral file and Downloads destinations
+- Platform-neutral warm/cold notification taps
+- Native task open and reveal actions
+- Zero-configuration `transfer_manager_flutter` facade
+- Simplified Android/iOS example
 
 ## Future mobile expansion
 

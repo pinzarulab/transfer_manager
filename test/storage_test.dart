@@ -16,7 +16,7 @@ void main() {
         id: 'one',
         request: DownloadRequest(
           source: Uri.parse('https://example.com/file'),
-          destinationPath: '${directory.path}/file',
+          destination: const TransferDestination.downloads('file.bin'),
           authScope: 'account-42',
           headers: const {
             'X-Safe': 'yes',
@@ -41,6 +41,10 @@ void main() {
     expect(restored.state, TransferState.running);
     expect(restored.bytesTransferred, 12);
     expect(restored.request.authScope, 'account-42');
+    expect(
+      (restored.request as DownloadRequest).destination.kind,
+      TransferDestinationKind.downloads,
+    );
   });
 
   test('JSON storage round trips a TUS request and session metadata', () async {

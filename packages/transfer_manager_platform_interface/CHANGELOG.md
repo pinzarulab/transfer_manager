@@ -1,3 +1,8 @@
+## 2.0.0
+
+- Added platform-neutral destinations and notification taps.
+- Added native artifact open and reveal contracts.
+
 ## 1.0.0
 
 - Added native pause/resume methods and paused task snapshots.

@@ -90,7 +90,7 @@ final class JsonFileTransferStorage implements TransferStorage {
 }
 
 Map<String, Object?> _recordToJson(TransferRecord record) => {
-  'schemaVersion': 1,
+  'schemaVersion': 2,
   'id': record.id,
   'request': _requestToJson(record.request),
   'state': record.state.name,
@@ -158,7 +158,7 @@ Map<String, Object?> _requestToJson(TransferRequest request) {
     DownloadRequest() => {
       ...common,
       'source': request.source.toString(),
-      'destinationPath': request.destinationPath,
+      'destination': request.destination.toJson(),
       'resumeMode': request.resumeMode.name,
       'existingFilePolicy': request.existingFilePolicy.name,
     },
@@ -229,7 +229,11 @@ TransferRequest _requestFromJson(Map<String, Object?> json) {
   }
   return DownloadRequest(
     source: Uri.parse(json['source']! as String),
-    destinationPath: json['destinationPath']! as String,
+    destination: json['destination'] == null
+        ? TransferDestination.file(json['destinationPath']! as String)
+        : TransferDestination.fromJson(
+            json['destination']! as Map<String, Object?>,
+          ),
     resumeMode: ResumeMode.values.byName(json['resumeMode']! as String),
     existingFilePolicy: ExistingFilePolicy.values.byName(
       json['existingFilePolicy']! as String,

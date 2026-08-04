@@ -23,6 +23,10 @@ abstract class TransferManagerPlatform extends PlatformInterface {
 
   Stream<PlatformTaskSnapshot> get snapshots;
 
+  Stream<PlatformNotificationTap> get notificationTaps => const Stream.empty();
+
+  Future<PlatformNotificationTap?> takeInitialNotificationTap() async => null;
+
   Future<String> enqueueDownload(PlatformDownloadRequest request);
 
   Future<String> enqueueUpload(PlatformUploadRequest request);
@@ -40,6 +44,16 @@ abstract class TransferManagerPlatform extends PlatformInterface {
   Future<void> resume(String taskId) async => throw UnsupportedError(
     'Native resume is unsupported by this platform implementation',
   );
+
+  Future<void> open(
+    String taskId,
+    PlatformTransferDestination destination,
+  ) async => throw UnsupportedError('Opening transfers is unsupported');
+
+  Future<void> reveal(
+    String taskId,
+    PlatformTransferDestination destination,
+  ) async => throw UnsupportedError('Revealing transfers is unsupported');
 }
 
 final class _UnsupportedPlatform extends TransferManagerPlatform {
@@ -58,6 +72,9 @@ final class _UnsupportedPlatform extends TransferManagerPlatform {
 
   @override
   Stream<PlatformTaskSnapshot> get snapshots => const Stream.empty();
+
+  @override
+  Stream<PlatformNotificationTap> get notificationTaps => const Stream.empty();
 
   @override
   Future<String> enqueueDownload(PlatformDownloadRequest request) async =>

@@ -21,6 +21,62 @@ enum ResumeMode { never, whenSupported, required }
 
 enum ExistingFilePolicy { fail, replace, keepExisting, resume, rename }
 
+enum TransferDestinationKind { file, downloads }
+
+/// Platform-neutral destination for a downloaded artifact.
+sealed class TransferDestination {
+  const TransferDestination();
+
+  const factory TransferDestination.file(String path) = FileTransferDestination;
+  const factory TransferDestination.downloads(String fileName) =
+      DownloadsTransferDestination;
+
+  TransferDestinationKind get kind;
+  String get value;
+
+  String get fileName => switch (this) {
+    FileTransferDestination(:final path) => Uri.file(path).pathSegments.last,
+    DownloadsTransferDestination(:final fileName) => fileName,
+  };
+
+  Map<String, Object?> toJson() => {'kind': kind.name, 'value': value};
+
+  factory TransferDestination.fromJson(Map<String, Object?> json) =>
+      switch (TransferDestinationKind.values.byName(json['kind']! as String)) {
+        TransferDestinationKind.file => TransferDestination.file(
+          json['value']! as String,
+        ),
+        TransferDestinationKind.downloads => TransferDestination.downloads(
+          json['value']! as String,
+        ),
+      };
+}
+
+final class FileTransferDestination extends TransferDestination {
+  const FileTransferDestination(this.path) : assert(path != '');
+
+  final String path;
+
+  @override
+  TransferDestinationKind get kind => TransferDestinationKind.file;
+
+  @override
+  String get value => path;
+}
+
+final class DownloadsTransferDestination extends TransferDestination {
+  const DownloadsTransferDestination(this.fileName) : assert(fileName != '');
+
+  @override
+  final String fileName;
+
+  @override
+  TransferDestinationKind get kind => TransferDestinationKind.downloads;
+
+  @override
+  String get value => fileName;
+}
+
 enum NetworkPolicy { any, unmetered, wifiOnly }
 
 enum UploadSourcePolicy { reference, copyToManagedStorage }
@@ -260,7 +316,7 @@ final class TusUploadRequest extends TransferRequest {
 final class DownloadRequest extends TransferRequest {
   const DownloadRequest({
     required this.source,
-    required this.destinationPath,
+    required this.destination,
     this.resumeMode = ResumeMode.whenSupported,
     this.existingFilePolicy = ExistingFilePolicy.resume,
     super.headers,
@@ -275,7 +331,8 @@ final class DownloadRequest extends TransferRequest {
   });
 
   final Uri source;
-  final String destinationPath;
+  final TransferDestination destination;
+
   final ResumeMode resumeMode;
   final ExistingFilePolicy existingFilePolicy;
 
@@ -285,6 +342,14 @@ final class DownloadRequest extends TransferRequest {
   Uri get remoteUri => source;
   @override
   String get protocol => 'http-range';
+}
+
+/// Platform-neutral completion-notification interaction.
+final class TransferNotificationTap {
+  const TransferNotificationTap({required this.taskId, this.destination});
+
+  final String taskId;
+  final TransferDestination? destination;
 }
 
 final class TransferProgress {

@@ -2,6 +2,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:transfer_manager_platform_interface/transfer_manager_platform_interface.dart';
 
 void main() {
+  test('notification tap decodes destination', () {
+    final tap = PlatformNotificationTap.fromMap({
+      'taskId': 'one',
+      'destination': {'kind': 'downloads', 'value': 'report.pdf'},
+    });
+
+    expect(tap.taskId, 'one');
+    expect(tap.destination?.kind, 'downloads');
+    expect(tap.destination?.value, 'report.pdf');
+  });
+
   test('decodes capability maps conservatively', () {
     final capabilities = PlatformTransferCapabilities.fromMap({
       'backgroundDownloads': true,

@@ -9,6 +9,43 @@ enum PlatformTaskState {
   unknown,
 }
 
+final class PlatformTransferDestination {
+  const PlatformTransferDestination({required this.kind, required this.value});
+
+  final String kind;
+  final String value;
+
+  Map<String, Object?> toMap() => {'kind': kind, 'value': value};
+
+  factory PlatformTransferDestination.fromMap(Map<Object?, Object?> map) =>
+      PlatformTransferDestination(
+        kind: map['kind']! as String,
+        value: map['value']! as String,
+      );
+}
+
+final class PlatformNotificationTap {
+  const PlatformNotificationTap({required this.taskId, this.destination});
+
+  final String taskId;
+  final PlatformTransferDestination? destination;
+
+  factory PlatformNotificationTap.fromMap(Map<Object?, Object?> map) =>
+      PlatformNotificationTap(
+        taskId: map['taskId']! as String,
+        destination: map['destination'] is Map<Object?, Object?>
+            ? PlatformTransferDestination.fromMap(
+                map['destination']! as Map<Object?, Object?>,
+              )
+            : map['filePath'] is String
+            ? PlatformTransferDestination(
+                kind: 'file',
+                value: map['filePath']! as String,
+              )
+            : null,
+      );
+}
+
 final class PlatformTransferCapabilities {
   const PlatformTransferCapabilities({
     required this.backgroundDownloads,
@@ -17,6 +54,9 @@ final class PlatformTransferCapabilities {
     required this.pauseResume,
     required this.notifications,
     required this.notificationCancellation,
+    this.notificationTaps = false,
+    this.openArtifacts = false,
+    this.revealArtifacts = false,
   });
 
   final bool backgroundDownloads;
@@ -25,6 +65,9 @@ final class PlatformTransferCapabilities {
   final bool pauseResume;
   final bool notifications;
   final bool notificationCancellation;
+  final bool notificationTaps;
+  final bool openArtifacts;
+  final bool revealArtifacts;
 
   factory PlatformTransferCapabilities.fromMap(Map<Object?, Object?> map) =>
       PlatformTransferCapabilities(
@@ -35,14 +78,17 @@ final class PlatformTransferCapabilities {
         notifications: map['notifications'] as bool? ?? false,
         notificationCancellation:
             map['notificationCancellation'] as bool? ?? false,
+        notificationTaps: map['notificationTaps'] as bool? ?? false,
+        openArtifacts: map['openArtifacts'] as bool? ?? false,
+        revealArtifacts: map['revealArtifacts'] as bool? ?? false,
       );
 }
 
 final class PlatformDownloadRequest {
-  const PlatformDownloadRequest({
+  PlatformDownloadRequest({
     required this.taskId,
     required this.source,
-    required this.destinationPath,
+    required this.destination,
     this.headers = const {},
     this.networkPolicy = 'any',
     this.notificationTitle = 'Downloading file',
@@ -51,7 +97,8 @@ final class PlatformDownloadRequest {
 
   final String taskId;
   final Uri source;
-  final String destinationPath;
+  final PlatformTransferDestination destination;
+
   final Map<String, String> headers;
   final String networkPolicy;
   final String notificationTitle;
@@ -60,7 +107,7 @@ final class PlatformDownloadRequest {
   Map<String, Object?> toMap() => {
     'taskId': taskId,
     'source': source.toString(),
-    'destinationPath': destinationPath,
+    'destination': destination.toMap(),
     'headers': headers,
     'networkPolicy': networkPolicy,
     'notificationTitle': notificationTitle,

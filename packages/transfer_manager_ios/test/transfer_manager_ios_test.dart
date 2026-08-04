@@ -45,7 +45,10 @@ void main() {
       PlatformDownloadRequest(
         taskId: 'download',
         source: Uri.parse('https://example.com/file'),
-        destinationPath: '/files/file',
+        destination: const PlatformTransferDestination(
+          kind: 'file',
+          value: '/files/file',
+        ),
       ),
     );
     await platform.enqueueUpload(
@@ -61,7 +64,8 @@ void main() {
       'enqueueUpload',
     ]);
     expect(
-      (calls.first.arguments! as Map<Object?, Object?>)['destinationPath'],
+      ((calls.first.arguments! as Map<Object?, Object?>)['destination']!
+          as Map<Object?, Object?>)['value'],
       '/files/file',
     );
   });
@@ -81,6 +85,24 @@ void main() {
     expect(methods, ['pause', 'resume', 'cancel']);
   });
 
+  test('forwards artifact open and reveal actions', () async {
+    final methods = <String>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      return null;
+    });
+    final platform = TransferManagerIos(methodChannel: channel);
+    const destination = PlatformTransferDestination(
+      kind: 'downloads',
+      value: 'report.pdf',
+    );
+
+    await platform.open('one', destination);
+    await platform.reveal('one', destination);
+
+    expect(methods, ['open', 'reveal']);
+  });
+
   test('returns the notification that launched the app', () async {
     messenger.setMockMethodCallHandler(channel, (call) async {
       expect(call.method, 'takeInitialNotificationResponse');
@@ -94,7 +116,7 @@ void main() {
     final response = await platform.takeInitialNotificationResponse();
 
     expect(response?.taskId, 'download-1');
-    expect(response?.filePath, '/Documents/downloads/report.pdf');
+    expect(response?.destination?.value, '/Documents/downloads/report.pdf');
   });
 
   test('rejects native TUS because iOS uses foreground fallback', () {

@@ -13,7 +13,7 @@ void main() {
       id: 'task-1',
       request: DownloadRequest(
         source: Uri.parse('https://example.com/file'),
-        destinationPath: '/downloads/file',
+        destination: const TransferDestination.file('/downloads/file'),
         networkPolicy: NetworkPolicy.unmetered,
       ),
       state: TransferState.running,

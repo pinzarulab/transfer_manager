@@ -108,8 +108,14 @@ final class HttpTransferEngine implements TransferEngine {
     DownloadRequest request,
     TransferExecutionContext context,
   ) async {
-    final destination = File(request.destinationPath);
-    final partial = File('${request.destinationPath}.part');
+    final target = request.destination;
+    if (target is! FileTransferDestination) {
+      throw const TransferProtocolException(
+        'Foreground HTTP downloads require TransferDestination.file',
+      );
+    }
+    final destination = File(target.path);
+    final partial = File('${target.path}.part');
     await destination.parent.create(recursive: true);
 
     if (await destination.exists()) {

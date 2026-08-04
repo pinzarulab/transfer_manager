@@ -15,29 +15,6 @@ final class AndroidBackgroundDownloadEngine implements TransferEngine {
 
   final TransferManagerPlatform platform;
 
-  /// Creates a native destination that publishes the completed file to the
-  /// user-visible Android Downloads collection.
-  ///
-  /// Android 10 and newer resolve this destination through MediaStore, so the
-  /// app does not need broad storage permission.
-  static String downloadsDestination(String fileName) {
-    if (fileName.isEmpty ||
-        fileName == '.' ||
-        fileName == '..' ||
-        fileName.contains('/') ||
-        fileName.contains(r'\')) {
-      throw ArgumentError.value(
-        fileName,
-        'fileName',
-        'Must be a single non-empty file name',
-      );
-    }
-    return Uri(
-      scheme: 'transfer-manager-downloads',
-      path: '/$fileName',
-    ).toString();
-  }
-
   @override
   bool supports(TransferRequest request) => request is DownloadRequest;
 
@@ -70,7 +47,10 @@ final class AndroidBackgroundDownloadEngine implements TransferEngine {
         PlatformDownloadRequest(
           taskId: context.record.id,
           source: request.source,
-          destinationPath: request.destinationPath,
+          destination: PlatformTransferDestination(
+            kind: request.destination.kind.name,
+            value: request.destination.value,
+          ),
           headers: request.headers,
           networkPolicy: (request.networkPolicy ?? NetworkPolicy.any).name,
           notificationTitle: request.notification?.title ?? 'Downloading file',

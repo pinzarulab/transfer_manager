@@ -31,6 +31,8 @@ internal object TransferFileNotifications {
         title,
         contentUri(context, file),
         file.name,
+        "file",
+        file.path,
     )
 
     fun showCompleted(
@@ -39,14 +41,22 @@ internal object TransferFileNotifications {
         title: String,
         contentUri: Uri,
         fileName: String,
+        destinationKind: String = "downloads",
+        destinationValue: String = fileName,
     ) {
         val notifications = NotificationManagerCompat.from(context)
         if (!notifications.areNotificationsEnabled()) return
         createCompletionChannel(context)
-        val viewIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(contentUri, mimeType(fileName))
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val viewIntent = Intent(context, TransferNotificationTapReceiver::class.java).apply {
+            putExtra(TransferNotificationTapReceiver.EXTRA_TASK_ID, taskId)
+            putExtra(
+                TransferNotificationTapReceiver.EXTRA_DESTINATION_KIND,
+                destinationKind,
+            )
+            putExtra(
+                TransferNotificationTapReceiver.EXTRA_DESTINATION_VALUE,
+                destinationValue,
+            )
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -54,7 +64,7 @@ internal object TransferFileNotifications {
             } else {
                 0
             }
-        val openFile = PendingIntent.getActivity(
+        val openFile = PendingIntent.getBroadcast(
             context,
             completionNotificationId(taskId),
             viewIntent,
@@ -70,6 +80,19 @@ internal object TransferFileNotifications {
             .setCategory(NotificationCompat.CATEGORY_STATUS)
             .build()
         notifications.notify(completionNotificationId(taskId), notification)
+    }
+
+    fun open(context: Context, file: File) =
+        open(context, contentUri(context, file), file.name)
+
+    fun open(context: Context, contentUri: Uri, fileName: String) {
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, mimeType(fileName))
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            },
+        )
     }
 
     fun showUploadCompleted(

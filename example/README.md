@@ -16,6 +16,8 @@ It demonstrates:
 - Android 13+ and iOS notification permission requests
 - Android progress notifications
 - Android and iOS completion notifications, including while the app is visible
+- one-call `FlutterTransferManager.create()` setup
+- notification-tap delivery plus `task.open()` and `task.reveal()`
 
 Run it from this directory:
 
@@ -29,7 +31,7 @@ system Downloads folder, where the user and other apps can access them.
 Completion-notification taps open the downloaded file. On iOS, files are
 stored in the app's Documents directory and are exposed in the Files app under
 On My iPhone (or On My iPad) > Transfer Manager; tapping a completion
-notification opens the example's Downloads screen and highlights the file.
+notification opens the downloaded document preview.
 
 The public sample payloads come from Cloudflare's documented speed-test
 download endpoint and contain generated binary data.

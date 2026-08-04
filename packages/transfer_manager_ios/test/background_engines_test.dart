@@ -12,7 +12,7 @@ void main() {
       id: 'download',
       request: DownloadRequest(
         source: Uri.parse('https://example.com/file'),
-        destinationPath: '/files/file',
+        destination: const TransferDestination.file('/files/file'),
       ),
       state: TransferState.running,
     );
@@ -37,7 +37,7 @@ void main() {
     await execution;
 
     expect(record.nativeTaskId, 'ios-download');
-    expect(platform.download?.destinationPath, '/files/file');
+    expect(platform.download?.destination.value, '/files/file');
   });
 
   test('bridges a multipart upload through background URLSession', () async {
@@ -87,7 +87,7 @@ void main() {
       id: 'restored',
       request: DownloadRequest(
         source: Uri.parse('https://example.com/file'),
-        destinationPath: '/files/file',
+        destination: const TransferDestination.file('/files/file'),
       ),
       state: TransferState.running,
       nativeTaskId: '42',

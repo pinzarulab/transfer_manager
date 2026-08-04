@@ -23,6 +23,9 @@ void main() {
         'pauseResume': true,
         'notifications': true,
         'notificationCancellation': true,
+        'notificationTaps': true,
+        'openArtifacts': true,
+        'revealArtifacts': true,
       };
     });
     final platform = TransferManagerAndroid(methodChannel: channel);
@@ -34,6 +37,9 @@ void main() {
     expect(capabilities.backgroundTusUploads, isTrue);
     expect(capabilities.pauseResume, isTrue);
     expect(capabilities.notificationCancellation, isTrue);
+    expect(capabilities.notificationTaps, isTrue);
+    expect(capabilities.openArtifacts, isTrue);
+    expect(capabilities.revealArtifacts, isTrue);
   });
 
   test('encodes a durable download request', () async {
@@ -50,32 +56,15 @@ void main() {
       PlatformDownloadRequest(
         taskId: 'task-1',
         source: Uri.parse('https://example.com/file'),
-        destinationPath: '/files/file',
+        destination: const PlatformTransferDestination(
+          kind: 'file',
+          value: '/files/file',
+        ),
         networkPolicy: 'unmetered',
       ),
     );
 
     expect(workId, 'work-1');
-  });
-
-  test('creates a user-visible Downloads destination', () {
-    final destination = AndroidBackgroundDownloadEngine.downloadsDestination(
-      'report 1.pdf',
-    );
-    final uri = Uri.parse(destination);
-
-    expect(destination, 'transfer-manager-downloads:/report%201.pdf');
-    expect(uri.scheme, 'transfer-manager-downloads');
-    expect(uri.pathSegments, ['report 1.pdf']);
-  });
-
-  test('rejects nested Downloads destinations', () {
-    expect(
-      () => AndroidBackgroundDownloadEngine.downloadsDestination(
-        'private/report.pdf',
-      ),
-      throwsArgumentError,
-    );
   });
 
   test('requests notification permission through Android', () async {
@@ -101,6 +90,41 @@ void main() {
     await platform.resume('task-1');
 
     expect(calls, ['pause', 'resume']);
+  });
+
+  test('forwards artifact open and reveal actions', () async {
+    final methods = <String>[];
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      methods.add(call.method);
+      return null;
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+    const destination = PlatformTransferDestination(
+      kind: 'downloads',
+      value: 'report.pdf',
+    );
+
+    await platform.open('one', destination);
+    await platform.reveal('one', destination);
+
+    expect(methods, ['open', 'reveal']);
+  });
+
+  test('maps an initial notification tap', () async {
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'takeInitialNotificationTap');
+      return {
+        'taskId': 'task-1',
+        'destination': {'kind': 'downloads', 'value': 'report.pdf'},
+      };
+    });
+    final platform = TransferManagerAndroid(methodChannel: channel);
+
+    final tap = await platform.takeInitialNotificationTap();
+
+    expect(tap?.taskId, 'task-1');
+    expect(tap?.destination?.kind, 'downloads');
+    expect(tap?.destination?.value, 'report.pdf');
   });
 
   test('encodes a durable multipart upload request', () async {

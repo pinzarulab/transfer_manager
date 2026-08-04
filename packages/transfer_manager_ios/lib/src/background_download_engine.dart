@@ -41,7 +41,10 @@ final class IosBackgroundDownloadEngine implements TransferEngine {
         PlatformDownloadRequest(
           taskId: context.record.id,
           source: request.source,
-          destinationPath: request.destinationPath,
+          destination: PlatformTransferDestination(
+            kind: request.destination.kind.name,
+            value: request.destination.value,
+          ),
           headers: request.headers,
           networkPolicy: (request.networkPolicy ?? NetworkPolicy.any).name,
           notificationTitle: request.notification?.title ?? 'Download complete',

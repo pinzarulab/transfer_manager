@@ -5,8 +5,9 @@ model for uploads and downloads, a persistent queue, retries, progress and ETA,
 authentication renewal, integrity verification, and pluggable execution
 engines.
 
-This repository contains the **1.5 transfer core** and federated Android and
-iOS packages. Android background downloads, multipart uploads, and
+This repository contains the **2.0 transfer core**, federated Android/iOS
+packages, and a zero-configuration Flutter facade. Android background
+downloads, multipart uploads, and
 resumable TUS uploads are available as explicit WorkManager engines, including
 persistent pause/resume notification actions. iOS provides background
 URLSession downloads and multipart uploads. S3 multipart and Flutter widgets
@@ -34,6 +35,40 @@ remain future milestones.
 - Android low-storage preflight protection and device durability tests
 - iOS background URLSession downloads and file-backed multipart uploads
 - iOS relaunch reconciliation, pause/resume, retries, and notifications
+- Platform-neutral file and Downloads destinations
+- Platform-neutral warm/cold notification taps
+- `TransferTask.open()` and `TransferTask.reveal()`
+- One-call `FlutterTransferManager.create()` setup
+
+## Flutter quick start
+
+Depend on `transfer_manager_flutter`, then create one ready manager:
+
+```dart
+import 'package:transfer_manager_flutter/transfer_manager_flutter.dart';
+
+final transfers = await FlutterTransferManager.create();
+
+if (!await transfers.notificationsEnabled()) {
+  await transfers.requestNotificationPermission();
+}
+
+final task = await transfers.download(
+  Uri.parse('https://example.com/report.pdf'),
+  fileName: 'report.pdf',
+);
+
+transfers.notificationTaps.listen((tap) {
+  transfers.task(tap.taskId)?.open();
+});
+```
+
+Default downloads use Android MediaStore Downloads and iOS Documents exposed
+through Files. Explicit paths remain available:
+
+```dart
+destination: const TransferDestination.file('/app/path/report.pdf')
+```
 
 ## Android background downloads
 
@@ -59,7 +94,8 @@ notifications, notification cancellation, range resumption, and atomic
 completion. Persisted `ETag`/`Last-Modified` validators protect resumed files
 from remote-resource changes. Successful downloads post a completion
 notification—even while the app is visible—and tapping it opens the file using
-a temporary `FileProvider` permission. Multipart uploads can also run in
+the platform-neutral notification-tap stream. Calling `task.open()` then opens
+the file using a temporary `FileProvider` permission. Multipart uploads can also run in
 WorkManager; retrying them restarts the request. Native TUS uploads persist the
 server-created URL and acknowledged offset, then reconcile and continue in
 bounded chunks after retries or process restarts. Active native transfers can
@@ -97,14 +133,14 @@ file.
 
 Call `TransferManagerIos().requestNotificationPermission()` from visible UI
 before expecting completion notifications. Tapping a completion notification
-opens the application. Use `notificationResponses` and
-`takeInitialNotificationResponse()` to navigate using the included task
-identifier and downloaded file path.
+opens the application. Use `notificationTaps` and
+`takeInitialNotificationTap()` to recover the included task identifier, then
+call `task.open()` or `task.reveal()`.
 
 iOS does not advertise native background TUS. Keep `TusTransferEngine()` after
 the iOS native engines to use resumable TUS while the application is active.
 
-## Quick start
+## Pure Dart quick start
 
 ```dart
 import 'dart:io';
@@ -120,7 +156,7 @@ Future<void> main() async {
   final task = await manager.enqueue(
     DownloadRequest(
       source: Uri.parse('https://example.com/report.pdf'),
-      destinationPath: 'downloads/report.pdf',
+      destination: const TransferDestination.file('downloads/report.pdf'),
       checksum: Checksum.sha256,
       expectedChecksum: 'hex digest supplied by the server',
     ),

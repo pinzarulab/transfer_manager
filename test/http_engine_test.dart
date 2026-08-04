@@ -40,7 +40,7 @@ void main() {
     final task = await manager.enqueue(
       DownloadRequest(
         source: baseUri.resolve('/file'),
-        destinationPath: destination.path,
+        destination: TransferDestination.file(destination.path),
         expectedChecksum: sha256.convert(payload).toString(),
       ),
     );

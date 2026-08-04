@@ -1,3 +1,15 @@
+## 2.0.0
+
+- Added platform-neutral `TransferDestination.file` and
+  `TransferDestination.downloads` models with durable serialization.
+- Added platform-neutral completion-notification tap delivery for warm and
+  cold app launches.
+- Added `TransferTask.open()` and `TransferTask.reveal()` artifact actions.
+- Added `transfer_manager_flutter` with automatic Android/iOS engines,
+  durable storage, managed upload storage, notification APIs, and simplified
+  downloads.
+- Added native Android and iOS artifact open/reveal implementations.
+
 ## 1.5.0
 
 - Added the federated `transfer_manager_ios` package.

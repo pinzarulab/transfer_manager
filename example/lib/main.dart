@@ -2,10 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:transfer_manager/transfer_manager.dart';
-import 'package:transfer_manager_android/transfer_manager_android.dart';
-import 'package:transfer_manager_ios/transfer_manager_ios.dart';
+import 'package:transfer_manager_flutter/transfer_manager_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -64,11 +61,9 @@ class _DownloadsPageState extends State<DownloadsPage> {
   final Map<String, DownloadTaskView> _taskViews = {};
   final List<StreamSubscription<TransferEvent>> _subscriptions = [];
 
-  TransferManager? _manager;
-  TransferManagerIos? _iosPlatform;
-  StreamSubscription<IosTransferNotificationResponse>?
+  FlutterTransferManager? _manager;
+  StreamSubscription<TransferNotificationTap>?
   _notificationResponseSubscription;
-  Directory? _downloadDirectory;
   bool _initializing = true;
   bool _requestingNotifications = false;
   bool _notificationsEnabled = false;
@@ -86,59 +81,30 @@ class _DownloadsPageState extends State<DownloadsPage> {
         throw UnsupportedError('This example supports Android and iOS.');
       }
 
-      final supportDirectory = await getApplicationSupportDirectory();
-      final downloadDirectory = Platform.isIOS
-          ? Directory(
-              '${(await getApplicationDocumentsDirectory()).path}'
-              '${Platform.pathSeparator}downloads',
-            )
-          : null;
-      await downloadDirectory?.create(recursive: true);
-
-      final iosPlatform = Platform.isIOS ? TransferManagerIos() : null;
-      final manager = TransferManager(
-        storage: JsonFileTransferStorage(
-          File(
-            '${supportDirectory.path}${Platform.pathSeparator}'
-            'transfer_manager${Platform.pathSeparator}tasks.json',
-          ),
-        ),
+      final manager = await FlutterTransferManager.create(
         configuration: const TransferConfiguration(
           maxConcurrentTasks: 3,
           maxConcurrentDownloads: 3,
         ),
-        engines: [
-          if (Platform.isAndroid) AndroidBackgroundDownloadEngine(),
-          if (iosPlatform != null)
-            IosBackgroundDownloadEngine(platform: iosPlatform),
-          HttpTransferEngine(),
-        ],
       );
-      await manager.initialize();
 
       for (final task in await manager.tasks()) {
         _attachTask(task);
       }
 
-      final notificationsEnabled = iosPlatform != null
-          ? await iosPlatform.notificationsEnabled()
-          : await _notificationsAreEnabled();
+      final notificationsEnabled = await manager.notificationsEnabled();
       if (!mounted) return;
       setState(() {
         _manager = manager;
-        _iosPlatform = iosPlatform;
-        _downloadDirectory = downloadDirectory;
         _notificationsEnabled = notificationsEnabled;
         _initializing = false;
       });
-      if (iosPlatform != null) {
-        _notificationResponseSubscription = iosPlatform.notificationResponses
-            .listen(_openDownloadsFolderFromNotification);
-        final initialResponse = await iosPlatform
-            .takeInitialNotificationResponse();
-        if (initialResponse != null) {
-          _openDownloadsFolderFromNotification(initialResponse);
-        }
+      _notificationResponseSubscription = manager.notificationTaps.listen(
+        _openFromNotification,
+      );
+      final initialResponse = await manager.takeInitialNotificationTap();
+      if (initialResponse != null) {
+        _openFromNotification(initialResponse);
       }
     } catch (error) {
       if (!mounted) return;
@@ -150,18 +116,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
   }
 
   Future<bool> _notificationsAreEnabled() {
-    if (Platform.isAndroid) {
-      return TransferManagerAndroid().notificationsEnabled();
-    }
-    return (_iosPlatform ?? TransferManagerIos()).notificationsEnabled();
+    return _manager!.notificationsEnabled();
   }
 
   Future<bool> _requestNotificationPermission() {
-    if (Platform.isAndroid) {
-      return TransferManagerAndroid().requestNotificationPermission();
-    }
-    return (_iosPlatform ?? TransferManagerIos())
-        .requestNotificationPermission();
+    return _manager!.requestNotificationPermission();
   }
 
   Future<void> _enableNotifications() async {
@@ -193,29 +152,20 @@ class _DownloadsPageState extends State<DownloadsPage> {
     }
 
     try {
-      final destination = Platform.isAndroid
-          ? AndroidBackgroundDownloadEngine.downloadsDestination(
-              option.fileName,
-            )
-          : '${_downloadDirectory!.path}'
-                '${Platform.pathSeparator}${option.fileName}';
       final visibleDestination = Platform.isAndroid
           ? 'Downloads/${option.fileName}'
           : 'Files → On My iPhone/iPad → Transfer Manager → downloads'
                 ' → ${option.fileName}';
-      final task = await manager.enqueue(
-        DownloadRequest(
-          source: Uri.https('speed.cloudflare.com', '/__down', {
-            'bytes': option.bytes.toString(),
-          }),
-          destinationPath: destination,
-          existingFilePolicy: ExistingFilePolicy.replace,
-          notification: TransferNotification(
-            title: option.title,
-            showProgress: true,
-            allowPause: true,
-            allowCancel: true,
-          ),
+      final task = await manager.download(
+        Uri.https('speed.cloudflare.com', '/__down', {
+          'bytes': option.bytes.toString(),
+        }),
+        fileName: option.fileName,
+        notification: TransferNotification(
+          title: option.title,
+          showProgress: true,
+          allowPause: true,
+          allowCancel: true,
         ),
       );
       _attachTask(task, option: option, destinationPath: visibleDestination);
@@ -251,21 +201,12 @@ class _DownloadsPageState extends State<DownloadsPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _openDownloadsFolderFromNotification(
-    IosTransferNotificationResponse response,
-  ) {
-    final directory = _downloadDirectory;
-    if (!mounted || directory == null) return;
+  void _openFromNotification(TransferNotificationTap response) {
+    final task = _manager?.task(response.taskId);
+    if (!mounted || task == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => DownloadsFolderPage(
-            directory: directory,
-            selectedFilePath: response.filePath,
-          ),
-        ),
-      );
+      unawaited(task.open());
     });
   }
 
@@ -357,74 +298,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
   Future<void> _refreshNotificationStatus() async {
     final enabled = await _notificationsAreEnabled();
     if (mounted) setState(() => _notificationsEnabled = enabled);
-  }
-}
-
-class DownloadsFolderPage extends StatelessWidget {
-  const DownloadsFolderPage({
-    required this.directory,
-    this.selectedFilePath,
-    super.key,
-  });
-
-  final Directory directory;
-  final String? selectedFilePath;
-
-  Future<List<FileSystemEntity>> _files() async {
-    final files = await directory
-        .list()
-        .where((entity) => entity is File)
-        .toList();
-    files.sort((a, b) => a.path.compareTo(b.path));
-    return files;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Downloads')),
-      body: FutureBuilder<List<FileSystemEntity>>(
-        future: _files(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Text('Could not read downloads: ${snapshot.error}'),
-            );
-          }
-          final files = snapshot.data ?? const [];
-          if (files.isEmpty) {
-            return const Center(child: Text('No downloaded files.'));
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(12),
-            itemCount: files.length,
-            itemBuilder: (context, index) {
-              final file = files[index];
-              final selected = file.path == selectedFilePath;
-              return Card(
-                color: selected
-                    ? Theme.of(context).colorScheme.primaryContainer
-                    : null,
-                child: ListTile(
-                  leading: Icon(
-                    selected
-                        ? Icons.insert_drive_file
-                        : Icons.insert_drive_file_outlined,
-                  ),
-                  title: Text(Uri.file(file.path).pathSegments.last),
-                  subtitle: Text(
-                    selected ? 'Opened from notification' : file.path,
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
   }
 }
 
@@ -629,6 +502,18 @@ class _TransferCard extends StatelessWidget {
                     icon: const Icon(Icons.refresh),
                     label: const Text('Retry'),
                   ),
+                if (task.state == TransferState.completed) ...[
+                  TextButton.icon(
+                    onPressed: task.open,
+                    icon: const Icon(Icons.open_in_new),
+                    label: const Text('Open'),
+                  ),
+                  TextButton.icon(
+                    onPressed: task.reveal,
+                    icon: const Icon(Icons.folder_open),
+                    label: const Text('Reveal'),
+                  ),
+                ],
                 if (isActive || task.state == TransferState.paused)
                   TextButton.icon(
                     onPressed: task.cancel,

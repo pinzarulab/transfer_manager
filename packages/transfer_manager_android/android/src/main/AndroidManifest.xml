@@ -9,6 +9,9 @@
         <receiver
             android:name=".TransferNotificationActionReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".TransferNotificationTapReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

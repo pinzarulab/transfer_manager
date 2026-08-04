@@ -9,13 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: ^2.1.6
-  transfer_manager:
-    path: ..
-  transfer_manager_android:
-    path: ../packages/transfer_manager_android
-  transfer_manager_ios:
-    path: ../packages/transfer_manager_ios
+  transfer_manager_flutter:
+    path: ../packages/transfer_manager_flutter
 
 dependency_overrides:
   # 2.3.x uses package:jni, which is incompatible with Flutter's current
@@ -23,6 +18,10 @@ dependency_overrides:
   path_provider_android: 2.2.18
   transfer_manager:
     path: ..
+  transfer_manager_android:
+    path: ../packages/transfer_manager_android
+  transfer_manager_ios:
+    path: ../packages/transfer_manager_ios
   transfer_manager_platform_interface:
     path: ../packages/transfer_manager_platform_interface
 

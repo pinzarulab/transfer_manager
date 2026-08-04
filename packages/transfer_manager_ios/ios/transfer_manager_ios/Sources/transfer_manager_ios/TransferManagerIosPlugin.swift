@@ -79,6 +79,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
     private weak var previousNotificationDelegate: UNUserNotificationCenterDelegate?
     private var methodChannel: FlutterMethodChannel?
     private var pendingNotificationResponse: [String: Any]?
+    private var documentInteractionController: UIDocumentInteractionController?
 
     private lazy var sessionIdentifier: String = {
         let bundle = Bundle.main.bundleIdentifier ?? "com.pinzarulab.transfer_manager"
@@ -132,6 +133,9 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                 "pauseResume": true,
                 "notifications": true,
                 "notificationCancellation": false,
+                "notificationTaps": true,
+                "openArtifacts": true,
+                "revealArtifacts": true,
             ])
         case "notificationsEnabled":
             UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -166,6 +170,10 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             control(arguments(call), action: .resume, result: result)
         case "cancel":
             control(arguments(call), action: .cancel, result: result)
+        case "open":
+            artifactAction(arguments(call), reveal: false, result: result)
+        case "reveal":
+            artifactAction(arguments(call), reveal: true, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
@@ -204,9 +212,9 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         guard let taskId = arguments["taskId"] as? String,
               let sourceValue = arguments["source"] as? String,
               let source = URL(string: sourceValue),
-              let destination = arguments["destinationPath"] as? String
+              let destination = destinationURL(arguments)?.path
         else {
-            result(error("invalid_request", "taskId, source, and destinationPath are required"))
+            result(error("invalid_request", "taskId, source, and destination are required"))
             return
         }
         guard let headers = safeHeaders(arguments, result: result) else { return }
@@ -229,6 +237,74 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         store(taskId, task: task, state: "enqueued", bytes: 0, total: nil)
         task.resume()
         result(String(task.taskIdentifier))
+    }
+
+    private func destinationURL(_ arguments: [String: Any]) -> URL? {
+        guard let destination = arguments["destination"] as? [String: Any],
+              let kind = destination["kind"] as? String,
+              let value = destination["value"] as? String,
+              !value.isEmpty
+        else {
+            return nil
+        }
+        if kind == "file" {
+            return URL(fileURLWithPath: value)
+        }
+        guard kind == "downloads",
+              URL(fileURLWithPath: value).lastPathComponent == value,
+              let documents = FileManager.default.urls(
+                for: .documentDirectory,
+                in: .userDomainMask
+              ).first
+        else {
+            return nil
+        }
+        return documents
+            .appendingPathComponent("downloads", isDirectory: true)
+            .appendingPathComponent(value, isDirectory: false)
+    }
+
+    private func artifactAction(
+        _ arguments: [String: Any],
+        reveal: Bool,
+        result: @escaping FlutterResult
+    ) {
+        guard let url = destinationURL(arguments),
+              FileManager.default.fileExists(atPath: url.path),
+              let presenter = topViewController()
+        else {
+            result(error("artifact_missing", "Downloaded file is unavailable"))
+            return
+        }
+        let controller = UIDocumentInteractionController(url: url)
+        controller.delegate = self
+        documentInteractionController = controller
+        let presented = reveal
+            ? controller.presentOptionsMenu(
+                from: presenter.view.bounds,
+                in: presenter.view,
+                animated: true
+              )
+            : controller.presentPreview(animated: true)
+        if presented {
+            result(nil)
+        } else {
+            documentInteractionController = nil
+            result(error("artifact_open_failed", "No application can open this file"))
+        }
+    }
+
+    private func topViewController() -> UIViewController? {
+        let root = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first { $0.isKeyWindow }?
+            .rootViewController
+        var current = root
+        while let presented = current?.presentedViewController {
+            current = presented
+        }
+        return current
     }
 
     private func enqueueUpload(
@@ -771,5 +847,19 @@ extension TransferManagerIosPlugin: UNUserNotificationCenterDelegate {
         } else {
             completionHandler()
         }
+    }
+}
+
+extension TransferManagerIosPlugin: UIDocumentInteractionControllerDelegate {
+    public func documentInteractionControllerViewControllerForPreview(
+        _ controller: UIDocumentInteractionController
+    ) -> UIViewController {
+        topViewController() ?? UIViewController()
+    }
+
+    public func documentInteractionControllerDidEndPreview(
+        _ controller: UIDocumentInteractionController
+    ) {
+        documentInteractionController = nil
     }
 }

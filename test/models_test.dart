@@ -30,4 +30,14 @@ void main() {
     );
     expect(TransferProgress.zero.fraction, isNull);
   });
+
+  test('platform-neutral destinations round trip JSON', () {
+    const destination = TransferDestination.downloads('report 1.pdf');
+
+    final restored = TransferDestination.fromJson(destination.toJson());
+
+    expect(restored.kind, TransferDestinationKind.downloads);
+    expect(restored.value, 'report 1.pdf');
+    expect(restored.fileName, 'report 1.pdf');
+  });
 }

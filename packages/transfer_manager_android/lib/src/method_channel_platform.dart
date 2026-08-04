@@ -22,6 +22,40 @@ final class TransferManagerAndroid extends TransferManagerPlatform {
   final EventChannel eventChannel;
 
   Stream<PlatformTaskSnapshot>? _snapshots;
+  final StreamController<PlatformNotificationTap> _notificationTaps =
+      StreamController<PlatformNotificationTap>.broadcast();
+  bool _methodHandlerInstalled = false;
+
+  @override
+  Stream<PlatformNotificationTap> get notificationTaps {
+    _ensureMethodHandler();
+    return _notificationTaps.stream;
+  }
+
+  @override
+  Future<PlatformNotificationTap?> takeInitialNotificationTap() async {
+    _ensureMethodHandler();
+    final value = await methodChannel.invokeMapMethod<Object?, Object?>(
+      'takeInitialNotificationTap',
+    );
+    return value == null ? null : PlatformNotificationTap.fromMap(value);
+  }
+
+  Future<Object?> _handleNativeMethod(MethodCall call) async {
+    if (call.method != 'notificationTapped') {
+      throw MissingPluginException('Unknown native method ${call.method}');
+    }
+    _notificationTaps.add(
+      PlatformNotificationTap.fromMap(call.arguments! as Map<Object?, Object?>),
+    );
+    return null;
+  }
+
+  void _ensureMethodHandler() {
+    if (_methodHandlerInstalled) return;
+    methodChannel.setMethodCallHandler(_handleNativeMethod);
+    _methodHandlerInstalled = true;
+  }
 
   static void registerWith() {
     TransferManagerPlatform.instance = TransferManagerAndroid();
@@ -115,4 +149,18 @@ final class TransferManagerAndroid extends TransferManagerPlatform {
   @override
   Future<void> resume(String taskId) =>
       methodChannel.invokeMethod<void>('resume', {'taskId': taskId});
+
+  @override
+  Future<void> open(String taskId, PlatformTransferDestination destination) =>
+      methodChannel.invokeMethod<void>('open', {
+        'taskId': taskId,
+        'destination': destination.toMap(),
+      });
+
+  @override
+  Future<void> reveal(String taskId, PlatformTransferDestination destination) =>
+      methodChannel.invokeMethod<void>('reveal', {
+        'taskId': taskId,
+        'destination': destination.toMap(),
+      });
 }

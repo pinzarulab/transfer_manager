@@ -11,9 +11,7 @@ final class TransferManagerIos extends TransferManagerPlatform {
           const MethodChannel('pinzarulab.com/transfer_manager_ios/methods'),
       eventChannel =
           eventChannel ??
-          const EventChannel('pinzarulab.com/transfer_manager_ios/events') {
-    this.methodChannel.setMethodCallHandler(_handleNativeMethod);
-  }
+          const EventChannel('pinzarulab.com/transfer_manager_ios/events');
 
   @visibleForTesting
   final MethodChannel methodChannel;
@@ -21,34 +19,51 @@ final class TransferManagerIos extends TransferManagerPlatform {
   final EventChannel eventChannel;
 
   Stream<PlatformTaskSnapshot>? _snapshots;
-  final StreamController<IosTransferNotificationResponse>
-  _notificationResponses =
-      StreamController<IosTransferNotificationResponse>.broadcast();
+  final StreamController<PlatformNotificationTap> _notificationResponses =
+      StreamController<PlatformNotificationTap>.broadcast();
+  bool _methodHandlerInstalled = false;
 
   /// Notification taps delivered while the Flutter engine is running.
-  Stream<IosTransferNotificationResponse> get notificationResponses =>
-      _notificationResponses.stream;
+  Stream<IosTransferNotificationResponse> get notificationResponses {
+    _ensureMethodHandler();
+    return _notificationResponses.stream;
+  }
+
+  @override
+  Stream<PlatformNotificationTap> get notificationTaps {
+    _ensureMethodHandler();
+    return _notificationResponses.stream;
+  }
 
   /// Returns and clears a notification tap that launched the application.
   Future<IosTransferNotificationResponse?>
   takeInitialNotificationResponse() async {
+    _ensureMethodHandler();
     final value = await methodChannel.invokeMapMethod<Object?, Object?>(
       'takeInitialNotificationResponse',
     );
-    return value == null
-        ? null
-        : IosTransferNotificationResponse.fromMap(value);
+    return value == null ? null : PlatformNotificationTap.fromMap(value);
   }
+
+  @override
+  Future<PlatformNotificationTap?> takeInitialNotificationTap() =>
+      takeInitialNotificationResponse();
 
   Future<Object?> _handleNativeMethod(MethodCall call) async {
     if (call.method != 'notificationTapped') {
       throw MissingPluginException('Unknown native method ${call.method}');
     }
-    final response = IosTransferNotificationResponse.fromMap(
+    final response = PlatformNotificationTap.fromMap(
       call.arguments! as Map<Object?, Object?>,
     );
     _notificationResponses.add(response);
     return null;
+  }
+
+  void _ensureMethodHandler() {
+    if (_methodHandlerInstalled) return;
+    methodChannel.setMethodCallHandler(_handleNativeMethod);
+    _methodHandlerInstalled = true;
   }
 
   static void registerWith() {
@@ -124,17 +139,20 @@ final class TransferManagerIos extends TransferManagerPlatform {
   @override
   Future<void> resume(String taskId) =>
       methodChannel.invokeMethod<void>('resume', {'taskId': taskId});
+
+  @override
+  Future<void> open(String taskId, PlatformTransferDestination destination) =>
+      methodChannel.invokeMethod<void>('open', {
+        'taskId': taskId,
+        'destination': destination.toMap(),
+      });
+
+  @override
+  Future<void> reveal(String taskId, PlatformTransferDestination destination) =>
+      methodChannel.invokeMethod<void>('reveal', {
+        'taskId': taskId,
+        'destination': destination.toMap(),
+      });
 }
 
-final class IosTransferNotificationResponse {
-  const IosTransferNotificationResponse({required this.taskId, this.filePath});
-
-  final String taskId;
-  final String? filePath;
-
-  factory IosTransferNotificationResponse.fromMap(Map<Object?, Object?> map) =>
-      IosTransferNotificationResponse(
-        taskId: map['taskId']! as String,
-        filePath: map['filePath'] as String?,
-      );
-}
+typedef IosTransferNotificationResponse = PlatformNotificationTap;
