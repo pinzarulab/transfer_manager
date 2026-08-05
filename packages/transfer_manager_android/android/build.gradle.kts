@@ -1,5 +1,5 @@
 group = "com.pinzarulab.transfer_manager_android"
-version = "2.0.0"
+version = "2.0.1"
 
 buildscript {
     repositories {

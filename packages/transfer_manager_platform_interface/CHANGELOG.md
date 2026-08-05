@@ -1,3 +1,7 @@
+## 2.0.1
+
+- Synchronized the federated package release with the 2.0.1 implementations.
+
 ## 2.0.0
 
 - Added platform-neutral destinations and notification taps.

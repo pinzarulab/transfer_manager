@@ -1,6 +1,6 @@
 name: transfer_manager_flutter
 description: Zero-configuration Flutter facade for transfer_manager on Android and iOS.
-version: 2.0.0
+version: 2.0.1
 homepage: https://github.com/pinzarulab/transfer_manager
 
 environment:
@@ -11,10 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
   path_provider: ^2.1.6
-  transfer_manager: ^2.0.0
-  transfer_manager_android: ^2.0.0
-  transfer_manager_ios: ^2.0.0
-  transfer_manager_platform_interface: ^2.0.0
+  transfer_manager: ^2.0.1
+  transfer_manager_android: ^2.0.1
+  transfer_manager_ios: ^2.0.1
+  transfer_manager_platform_interface: ^2.0.1
 
 dependency_overrides:
   # Keeps this repository's current Android example compatible with its

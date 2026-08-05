@@ -1,3 +1,7 @@
+## 2.0.1
+
+- Deferred method-channel callback registration until Flutter bindings exist.
+
 ## 2.0.0
 
 - Added platform-neutral destination decoding.

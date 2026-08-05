@@ -1,3 +1,8 @@
+## 2.0.1
+
+- Expanded Dart API documentation for destinations, requests, retries,
+  configuration, progress, events, and durable records.
+
 ## 2.0.0
 
 - Added platform-neutral `TransferDestination.file` and
