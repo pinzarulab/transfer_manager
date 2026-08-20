@@ -10,7 +10,7 @@ internal object TransferNotificationTapStore {
     private const val KEY_KIND = "kind"
     private const val KEY_VALUE = "value"
 
-    var listener: ((Map<String, Any>) -> Unit)? = null
+    var listener: ((Map<String, Any>, (Boolean) -> Unit) -> Unit)? = null
 
     fun put(context: Context, taskId: String, kind: String, value: String) {
         context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
@@ -18,8 +18,10 @@ internal object TransferNotificationTapStore {
             .putString(KEY_TASK_ID, taskId)
             .putString(KEY_KIND, kind)
             .putString(KEY_VALUE, value)
-            .apply()
-        listener?.invoke(payload(taskId, kind, value))
+            .commit()
+        listener?.invoke(payload(taskId, kind, value)) { delivered ->
+            if (delivered) clear(context, taskId)
+        }
     }
 
     fun take(context: Context): Map<String, Any>? {
@@ -32,6 +34,16 @@ internal object TransferNotificationTapStore {
         val value = preferences.getString(KEY_VALUE, null) ?: return null
         preferences.edit().clear().apply()
         return payload(taskId, kind, value)
+    }
+
+    private fun clear(context: Context, taskId: String) {
+        val preferences = context.getSharedPreferences(
+            PREFERENCES,
+            Context.MODE_PRIVATE,
+        )
+        if (preferences.getString(KEY_TASK_ID, null) == taskId) {
+            preferences.edit().clear().apply()
+        }
     }
 
     private fun payload(taskId: String, kind: String, value: String) = mapOf(

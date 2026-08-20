@@ -23,7 +23,7 @@ final class TransferManagerAndroid extends TransferManagerPlatform {
 
   Stream<PlatformTaskSnapshot>? _snapshots;
   final StreamController<PlatformNotificationTap> _notificationTaps =
-      StreamController<PlatformNotificationTap>.broadcast();
+      StreamController<PlatformNotificationTap>.broadcast(sync: true);
   bool _methodHandlerInstalled = false;
 
   @override
@@ -45,10 +45,11 @@ final class TransferManagerAndroid extends TransferManagerPlatform {
     if (call.method != 'notificationTapped') {
       throw MissingPluginException('Unknown native method ${call.method}');
     }
+    if (!_notificationTaps.hasListener) return false;
     _notificationTaps.add(
       PlatformNotificationTap.fromMap(call.arguments! as Map<Object?, Object?>),
     );
-    return null;
+    return true;
   }
 
   void _ensureMethodHandler() {

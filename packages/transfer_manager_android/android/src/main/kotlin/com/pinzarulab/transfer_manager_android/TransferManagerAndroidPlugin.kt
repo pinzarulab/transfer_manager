@@ -58,8 +58,22 @@ class TransferManagerAndroidPlugin :
         )
         methods.setMethodCallHandler(this)
         events.setStreamHandler(this)
-        TransferNotificationTapStore.listener = { payload ->
-            methods.invokeMethod("notificationTapped", payload)
+        TransferNotificationTapStore.listener = { payload, complete ->
+            methods.invokeMethod(
+                "notificationTapped",
+                payload,
+                object : MethodChannel.Result {
+                    override fun success(result: Any?) = complete(result == true)
+
+                    override fun error(
+                        errorCode: String,
+                        errorMessage: String?,
+                        errorDetails: Any?,
+                    ) = complete(false)
+
+                    override fun notImplemented() = complete(false)
+                },
+            )
         }
     }
 

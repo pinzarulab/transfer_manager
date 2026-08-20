@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'transfer_manager_ios'
-  s.version          = '2.0.1'
+  s.version          = '2.0.2'
   s.summary          = 'iOS background URLSession implementation for transfer_manager.'
   s.description      = <<-DESC
 Durable background downloads and uploads for the transfer_manager Flutter package.

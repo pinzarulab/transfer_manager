@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:transfer_manager_android/transfer_manager_android.dart';
@@ -125,6 +127,29 @@ void main() {
     expect(tap?.taskId, 'task-1');
     expect(tap?.destination?.kind, 'downloads');
     expect(tap?.destination?.value, 'report.pdf');
+  });
+
+  test('delivers a live notification tap and acknowledges it', () async {
+    final platform = TransferManagerAndroid(methodChannel: channel);
+    final tapFuture = platform.notificationTaps.first;
+    final response = Completer<ByteData?>();
+
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(
+        const MethodCall('notificationTapped', {
+          'taskId': 'task-live',
+          'destination': {'kind': 'downloads', 'value': 'live.pdf'},
+        }),
+      ),
+      response.complete,
+    );
+
+    final tap = await tapFuture;
+    final acknowledged = channel.codec.decodeEnvelope((await response.future)!);
+    expect(tap.taskId, 'task-live');
+    expect(tap.destination?.value, 'live.pdf');
+    expect(acknowledged, isTrue);
   });
 
   test('encodes a durable multipart upload request', () async {

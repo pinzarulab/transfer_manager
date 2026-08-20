@@ -1,3 +1,8 @@
+## 2.0.2
+
+- Deliver live notification taps synchronously to the Flutter facade before
+  acknowledging the native callback.
+
 ## 2.0.1
 
 - Fixed plugin registration before Flutter's binary messenger initializes.

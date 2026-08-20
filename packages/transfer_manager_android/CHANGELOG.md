@@ -1,3 +1,8 @@
+## 2.0.2
+
+- Keep notification taps pending until Dart confirms live delivery.
+- Prevent notification taps from requiring a hot restart.
+
 ## 2.0.1
 
 - Deferred method-channel callback registration until Flutter bindings exist.

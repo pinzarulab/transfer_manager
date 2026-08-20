@@ -20,7 +20,7 @@ final class TransferManagerIos extends TransferManagerPlatform {
 
   Stream<PlatformTaskSnapshot>? _snapshots;
   final StreamController<PlatformNotificationTap> _notificationResponses =
-      StreamController<PlatformNotificationTap>.broadcast();
+      StreamController<PlatformNotificationTap>.broadcast(sync: true);
   bool _methodHandlerInstalled = false;
 
   /// Notification taps delivered while the Flutter engine is running.

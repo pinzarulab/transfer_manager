@@ -204,10 +204,15 @@ class _DownloadsPageState extends State<DownloadsPage> {
   void _openFromNotification(TransferNotificationTap response) {
     final task = _manager?.task(response.taskId);
     if (!mounted || task == null) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      unawaited(task.open());
-    });
+    unawaited(_openTaskFromNotification(task));
+  }
+
+  Future<void> _openTaskFromNotification(TransferTask task) async {
+    try {
+      await task.open();
+    } catch (error) {
+      if (mounted) _showMessage('Could not open download: $error');
+    }
   }
 
   @override

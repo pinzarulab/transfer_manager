@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:transfer_manager/transfer_manager.dart';
 import 'package:transfer_manager_android/transfer_manager_android.dart';
@@ -8,11 +10,28 @@ import 'package:transfer_manager_platform_interface/transfer_manager_platform_in
 
 /// Ready-to-use Android/iOS transfer manager with durable storage and native
 /// background engines.
-final class FlutterTransferManager {
-  FlutterTransferManager._(this.manager, this._platform);
+final class FlutterTransferManager with WidgetsBindingObserver {
+  FlutterTransferManager._(this.manager, this._platform) {
+    _notificationTapController =
+        StreamController<TransferNotificationTap>.broadcast(
+          onListen: _scheduleNotificationTapFlush,
+        );
+    WidgetsBinding.instance.addObserver(this);
+    _platformTapSubscription = _platform.notificationTaps.listen(
+      _receiveNotificationTap,
+    );
+  }
 
   final TransferManager manager;
   final TransferManagerPlatform _platform;
+  late final StreamController<TransferNotificationTap>
+  _notificationTapController;
+  late final StreamSubscription<PlatformNotificationTap>
+  _platformTapSubscription;
+  final List<TransferNotificationTap> _pendingNotificationTaps = [];
+  Completer<void>? _resumedCompleter;
+  bool _notificationTapFlushScheduled = false;
+  bool _closed = false;
 
   static Future<FlutterTransferManager> create({
     TransferConfiguration configuration = const TransferConfiguration(),
@@ -75,11 +94,13 @@ final class FlutterTransferManager {
   }
 
   Stream<TransferNotificationTap> get notificationTaps =>
-      _platform.notificationTaps.map(_mapTap);
+      _notificationTapController.stream;
 
   Future<TransferNotificationTap?> takeInitialNotificationTap() async {
     final tap = await _platform.takeInitialNotificationTap();
-    return tap == null ? null : _mapTap(tap);
+    if (tap == null) return null;
+    await _waitUntilUiReady();
+    return _mapTap(tap);
   }
 
   Future<bool> notificationsEnabled() => _platform.notificationsEnabled();
@@ -116,7 +137,65 @@ final class FlutterTransferManager {
     ),
   );
 
-  Future<void> close() => manager.close();
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _resumedCompleter?.complete();
+      _resumedCompleter = null;
+      _scheduleNotificationTapFlush();
+    }
+  }
+
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    _resumedCompleter?.complete();
+    _resumedCompleter = null;
+    WidgetsBinding.instance.removeObserver(this);
+    await _platformTapSubscription.cancel();
+    await _notificationTapController.close();
+    await manager.close();
+  }
+
+  void _receiveNotificationTap(PlatformNotificationTap tap) {
+    _pendingNotificationTaps.add(_mapTap(tap));
+    _scheduleNotificationTapFlush();
+  }
+
+  Future<void> _waitUntilUiReady() async {
+    if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      _resumedCompleter ??= Completer<void>();
+      await _resumedCompleter!.future;
+    }
+    if (_closed) return;
+    WidgetsBinding.instance.scheduleFrame();
+    await WidgetsBinding.instance.endOfFrame;
+  }
+
+  void _scheduleNotificationTapFlush() {
+    if (_closed ||
+        _notificationTapFlushScheduled ||
+        _pendingNotificationTaps.isEmpty ||
+        !_notificationTapController.hasListener ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    _notificationTapFlushScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _notificationTapFlushScheduled = false;
+      if (_closed ||
+          !_notificationTapController.hasListener ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return;
+      }
+      final taps = List<TransferNotificationTap>.of(_pendingNotificationTaps);
+      _pendingNotificationTaps.clear();
+      for (final tap in taps) {
+        _notificationTapController.add(tap);
+      }
+    });
+    WidgetsBinding.instance.scheduleFrame();
+  }
 
   TransferNotificationTap _mapTap(PlatformNotificationTap tap) {
     final request = manager.task(tap.taskId)?.request;
@@ -155,9 +234,6 @@ final class _FlutterTaskActions implements TransferTaskActions {
     final request = record.request;
     if (request is! DownloadRequest) {
       throw UnsupportedError('Only downloaded artifacts can be opened');
-    }
-    if (record.state != TransferState.completed) {
-      throw StateError('Transfer must be completed before opening it');
     }
     return PlatformTransferDestination(
       kind: request.destination.kind.name,
