@@ -1,0 +1,5 @@
+dependency_overrides:
+  transfer_manager:
+    path: ../..
+  transfer_manager_platform_interface:
+    path: ../transfer_manager_platform_interface

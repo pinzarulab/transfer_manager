@@ -1,0 +1,12 @@
+dependency_overrides:
+  # Keeps this repository's current Android example compatible with its
+  # generated Gradle setup. Consumers resolve path_provider normally.
+  path_provider_android: 2.2.18
+  transfer_manager:
+    path: ../..
+  transfer_manager_android:
+    path: ../transfer_manager_android
+  transfer_manager_ios:
+    path: ../transfer_manager_ios
+  transfer_manager_platform_interface:
+    path: ../transfer_manager_platform_interface
