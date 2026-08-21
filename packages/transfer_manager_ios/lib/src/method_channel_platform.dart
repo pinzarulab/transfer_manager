@@ -53,11 +53,12 @@ final class TransferManagerIos extends TransferManagerPlatform {
     if (call.method != 'notificationTapped') {
       throw MissingPluginException('Unknown native method ${call.method}');
     }
+    if (!_notificationResponses.hasListener) return false;
     final response = PlatformNotificationTap.fromMap(
       call.arguments! as Map<Object?, Object?>,
     );
     _notificationResponses.add(response);
-    return null;
+    return true;
   }
 
   void _ensureMethodHandler() {

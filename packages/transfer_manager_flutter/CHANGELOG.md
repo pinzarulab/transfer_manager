@@ -1,3 +1,9 @@
+## 2.1.1
+
+- Recover pending notification taps whenever application resumes.
+- Deduplicate warm and persisted delivery of same tap.
+- Wait for resumed UI and retry automatic `open()` or `reveal()` actions.
+
 ## 2.1.0
 
 - Added `showNotification` and `openFromNotification` download options.

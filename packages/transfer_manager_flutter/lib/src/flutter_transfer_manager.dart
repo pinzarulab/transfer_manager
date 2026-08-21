@@ -31,6 +31,9 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   _platformTapSubscription;
   late final Future<TransferNotificationTap?> _initialNotificationTapFuture;
   final List<TransferNotificationTap> _pendingNotificationTaps = [];
+  final Set<String> _pendingNotificationTapIds = {};
+  final Set<String> _handledNotificationTapIds = {};
+  Future<TransferNotificationTap?>? _notificationTapRecovery;
   Completer<void>? _resumedCompleter;
   bool _notificationTapFlushScheduled = false;
   bool _initialNotificationTapTaken = false;
@@ -162,6 +165,7 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _resumedCompleter?.complete();
       _resumedCompleter = null;
+      unawaited(_recoverNotificationTap());
       _scheduleNotificationTapFlush();
     }
   }
@@ -178,17 +182,55 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   }
 
   void _receiveNotificationTap(PlatformNotificationTap tap) {
-    _pendingNotificationTaps.add(_mapTap(tap));
-    _scheduleNotificationTapFlush();
+    _enqueueNotificationTap(_mapTap(tap));
   }
 
-  Future<TransferNotificationTap?> _loadInitialNotificationTap() async {
-    final platformTap = await _platform.takeInitialNotificationTap();
-    if (platformTap == null || _closed) return null;
-    final tap = _mapTap(platformTap);
+  Future<TransferNotificationTap?> _loadInitialNotificationTap() =>
+      _recoverNotificationTap();
+
+  Future<TransferNotificationTap?> _recoverNotificationTap() {
+    final active = _notificationTapRecovery;
+    if (active != null) return active;
+    final recovery = _takeAndQueueNotificationTap();
+    _notificationTapRecovery = recovery;
+    unawaited(
+      recovery.whenComplete(() {
+        if (identical(_notificationTapRecovery, recovery)) {
+          _notificationTapRecovery = null;
+        }
+      }),
+    );
+    return recovery;
+  }
+
+  Future<TransferNotificationTap?> _takeAndQueueNotificationTap() async {
+    try {
+      final platformTap = await _platform.takeInitialNotificationTap();
+      if (platformTap == null || _closed) return null;
+      final tap = _mapTap(platformTap);
+      _enqueueNotificationTap(tap);
+      return tap;
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'transfer_manager_flutter',
+          context: ErrorDescription('recovering a notification tap'),
+        ),
+      );
+      return null;
+    }
+  }
+
+  void _enqueueNotificationTap(TransferNotificationTap tap) {
+    if (_closed ||
+        _handledNotificationTapIds.contains(tap.taskId) ||
+        !_pendingNotificationTapIds.add(tap.taskId)) {
+      return;
+    }
     _pendingNotificationTaps.add(tap);
     _scheduleNotificationTapFlush();
-    return tap;
   }
 
   Future<void> _waitUntilUiReady() async {
@@ -223,6 +265,10 @@ final class FlutterTransferManager with WidgetsBindingObserver {
         final hasAutomaticAction = _hasAutomaticAction(tap);
         if (_notificationTapController.hasListener) {
           _notificationTapController.add(tap);
+          if (!hasAutomaticAction) {
+            _pendingNotificationTapIds.remove(tap.taskId);
+            _markNotificationTapHandled(tap.taskId);
+          }
         } else if (!hasAutomaticAction) {
           _pendingNotificationTaps.add(tap);
         }
@@ -238,29 +284,57 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   }
 
   Future<void> _actFromNotification(TransferNotificationTap tap) async {
+    Object? lastError;
+    StackTrace? lastStackTrace;
     try {
+      await _waitUntilUiReady();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
       final task = manager.task(tap.taskId);
       final request = task?.request;
       if (task == null || request is! DownloadRequest) return;
-      switch (request.notification?.openType) {
-        case NotificationOpenType.open:
-          await task.open();
+      final action = request.notification?.openType;
+      if (action == null) return;
+      for (var attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (action == NotificationOpenType.open) {
+            await task.open();
+          } else {
+            await task.reveal();
+          }
+          _pendingNotificationTapIds.remove(tap.taskId);
+          _markNotificationTapHandled(tap.taskId);
           return;
-        case NotificationOpenType.reveal:
-          await task.reveal();
-          return;
-        case null:
-          return;
+        } catch (error, stackTrace) {
+          lastError = error;
+          lastStackTrace = stackTrace;
+          if (attempt < 2) {
+            await Future<void>.delayed(
+              Duration(milliseconds: 400 * (attempt + 1)),
+            );
+          }
+        }
       }
-    } catch (error, stackTrace) {
+    } finally {
+      if (!_handledNotificationTapIds.contains(tap.taskId) && !_closed) {
+        _pendingNotificationTaps.add(tap);
+      }
+    }
+    if (lastError != null) {
       FlutterError.reportError(
         FlutterErrorDetails(
-          exception: error,
-          stack: stackTrace,
+          exception: lastError,
+          stack: lastStackTrace,
           library: 'transfer_manager_flutter',
           context: ErrorDescription('handling a download notification tap'),
         ),
       );
+    }
+  }
+
+  void _markNotificationTapHandled(String taskId) {
+    _handledNotificationTapIds.add(taskId);
+    if (_handledNotificationTapIds.length > 256) {
+      _handledNotificationTapIds.remove(_handledNotificationTapIds.first);
     }
   }
 

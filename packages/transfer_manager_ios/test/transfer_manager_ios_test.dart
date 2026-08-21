@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:transfer_manager_ios/transfer_manager_ios.dart';
@@ -122,6 +124,46 @@ void main() {
 
     expect(response?.taskId, 'download-1');
     expect(response?.destination?.value, '/Documents/downloads/report.pdf');
+  });
+
+  test('delivers and acknowledges a live notification tap', () async {
+    final platform = TransferManagerIos(methodChannel: channel);
+    final tapFuture = platform.notificationTaps.first;
+    final response = Completer<ByteData?>();
+
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(
+        const MethodCall('notificationTapped', {
+          'taskId': 'download-live',
+          'filePath': '/Documents/downloads/live.pdf',
+        }),
+      ),
+      response.complete,
+    );
+
+    final tap = await tapFuture;
+    final acknowledged = channel.codec.decodeEnvelope((await response.future)!);
+    expect(tap.taskId, 'download-live');
+    expect(tap.destination?.value, '/Documents/downloads/live.pdf');
+    expect(acknowledged, isTrue);
+  });
+
+  test('does not acknowledge a live tap without a Dart listener', () async {
+    final platform = TransferManagerIos(methodChannel: channel);
+    platform.notificationTaps;
+    final response = Completer<ByteData?>();
+
+    await messenger.handlePlatformMessage(
+      channel.name,
+      channel.codec.encodeMethodCall(
+        const MethodCall('notificationTapped', {'taskId': 'pending'}),
+      ),
+      response.complete,
+    );
+
+    final acknowledged = channel.codec.decodeEnvelope((await response.future)!);
+    expect(acknowledged, isFalse);
   });
 
   test('rejects native TUS because iOS uses foreground fallback', () {

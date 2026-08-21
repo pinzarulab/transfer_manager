@@ -1,3 +1,8 @@
+## 2.1.1
+
+- Keep notification taps pending until Dart acknowledges live delivery.
+- Recover taps that arrive while Flutter UI is still resuming.
+
 ## 2.1.0
 
 - Added completion-notification suppression for downloads.

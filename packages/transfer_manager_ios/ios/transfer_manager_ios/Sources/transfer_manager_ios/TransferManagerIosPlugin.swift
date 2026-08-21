@@ -834,7 +834,15 @@ extension TransferManagerIosPlugin: UNUserNotificationCenterDelegate {
             pendingNotificationResponse = payload
             methodChannel?.invokeMethod(
                 "notificationTapped",
-                arguments: payload
+                arguments: payload,
+                result: { [weak self] result in
+                    guard result as? Bool == true,
+                          self?.pendingNotificationResponse?["taskId"] as? String == taskId
+                    else {
+                        return
+                    }
+                    self?.pendingNotificationResponse = nil
+                }
             )
             completionHandler()
             return
