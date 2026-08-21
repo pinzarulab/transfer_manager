@@ -1,3 +1,9 @@
+## 2.1.2
+
+- Avoid repeating notification actions already completed directly by Android.
+- Remove Flutter lifecycle timing from Android notification `open` and
+  `reveal` actions.
+
 ## 2.1.1
 
 - Recover pending notification taps whenever application resumes.

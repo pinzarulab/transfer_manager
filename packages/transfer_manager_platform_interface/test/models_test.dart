@@ -6,11 +6,13 @@ void main() {
     final tap = PlatformNotificationTap.fromMap({
       'taskId': 'one',
       'destination': {'kind': 'downloads', 'value': 'report.pdf'},
+      'actionHandled': true,
     });
 
     expect(tap.taskId, 'one');
     expect(tap.destination?.kind, 'downloads');
     expect(tap.destination?.value, 'report.pdf');
+    expect(tap.actionHandled, isTrue);
   });
 
   test('decodes capability maps conservatively', () {
@@ -70,9 +72,11 @@ void main() {
         value: 'file.bin',
       ),
       showNotification: false,
+      notificationOpenType: 'reveal',
     );
 
     expect(request.toMap()['showNotification'], isFalse);
+    expect(request.toMap()['notificationOpenType'], 'reveal');
   });
 
   test('encodes TUS upload requests', () {

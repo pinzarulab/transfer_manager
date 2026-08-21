@@ -9,17 +9,25 @@ internal object TransferNotificationTapStore {
     private const val KEY_TASK_ID = "taskId"
     private const val KEY_KIND = "kind"
     private const val KEY_VALUE = "value"
+    private const val KEY_ACTION_HANDLED = "actionHandled"
 
     var listener: ((Map<String, Any>, (Boolean) -> Unit) -> Unit)? = null
 
-    fun put(context: Context, taskId: String, kind: String, value: String) {
+    fun put(
+        context: Context,
+        taskId: String,
+        kind: String,
+        value: String,
+        actionHandled: Boolean,
+    ) {
         context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_TASK_ID, taskId)
             .putString(KEY_KIND, kind)
             .putString(KEY_VALUE, value)
+            .putBoolean(KEY_ACTION_HANDLED, actionHandled)
             .commit()
-        listener?.invoke(payload(taskId, kind, value)) { delivered ->
+        listener?.invoke(payload(taskId, kind, value, actionHandled)) { delivered ->
             if (delivered) clear(context, taskId)
         }
     }
@@ -32,8 +40,9 @@ internal object TransferNotificationTapStore {
         val taskId = preferences.getString(KEY_TASK_ID, null) ?: return null
         val kind = preferences.getString(KEY_KIND, null) ?: return null
         val value = preferences.getString(KEY_VALUE, null) ?: return null
+        val actionHandled = preferences.getBoolean(KEY_ACTION_HANDLED, false)
         preferences.edit().clear().apply()
-        return payload(taskId, kind, value)
+        return payload(taskId, kind, value, actionHandled)
     }
 
     private fun clear(context: Context, taskId: String) {
@@ -46,9 +55,15 @@ internal object TransferNotificationTapStore {
         }
     }
 
-    private fun payload(taskId: String, kind: String, value: String) = mapOf(
+    private fun payload(
+        taskId: String,
+        kind: String,
+        value: String,
+        actionHandled: Boolean,
+    ) = mapOf(
         "taskId" to taskId,
         "destination" to mapOf("kind" to kind, "value" to value),
+        "actionHandled" to actionHandled,
     )
 }
 
@@ -57,15 +72,32 @@ class TransferNotificationTapReceiver : BroadcastReceiver() {
         val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return
         val kind = intent.getStringExtra(EXTRA_DESTINATION_KIND) ?: return
         val value = intent.getStringExtra(EXTRA_DESTINATION_VALUE) ?: return
-        TransferNotificationTapStore.put(context, taskId, kind, value)
-        context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            ?.let(context::startActivity)
+        val openType = intent.getStringExtra(EXTRA_OPEN_TYPE) ?: "open"
+        val actionHandled = runCatching {
+            if (openType == "reveal") {
+                TransferArtifactActions.reveal(context, kind, value)
+            } else {
+                TransferArtifactActions.open(context, kind, value)
+            }
+        }.isSuccess
+        TransferNotificationTapStore.put(
+            context,
+            taskId,
+            kind,
+            value,
+            actionHandled,
+        )
+        if (!actionHandled) {
+            context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                ?.let(context::startActivity)
+        }
     }
 
     companion object {
         const val EXTRA_TASK_ID = "taskId"
         const val EXTRA_DESTINATION_KIND = "destinationKind"
         const val EXTRA_DESTINATION_VALUE = "destinationValue"
+        const val EXTRA_OPEN_TYPE = "openType"
     }
 }

@@ -33,6 +33,7 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   final List<TransferNotificationTap> _pendingNotificationTaps = [];
   final Set<String> _pendingNotificationTapIds = {};
   final Set<String> _handledNotificationTapIds = {};
+  final Set<String> _platformHandledNotificationTapIds = {};
   Future<TransferNotificationTap?>? _notificationTapRecovery;
   Completer<void>? _resumedCompleter;
   bool _notificationTapFlushScheduled = false;
@@ -182,6 +183,9 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   }
 
   void _receiveNotificationTap(PlatformNotificationTap tap) {
+    if (tap.actionHandled) {
+      _platformHandledNotificationTapIds.add(tap.taskId);
+    }
     _enqueueNotificationTap(_mapTap(tap));
   }
 
@@ -207,6 +211,9 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     try {
       final platformTap = await _platform.takeInitialNotificationTap();
       if (platformTap == null || _closed) return null;
+      if (platformTap.actionHandled) {
+        _platformHandledNotificationTapIds.add(platformTap.taskId);
+      }
       final tap = _mapTap(platformTap);
       _enqueueNotificationTap(tap);
       return tap;
@@ -280,7 +287,9 @@ final class FlutterTransferManager with WidgetsBindingObserver {
 
   bool _hasAutomaticAction(TransferNotificationTap tap) {
     final request = manager.task(tap.taskId)?.request;
-    return request is DownloadRequest && request.notification != null;
+    return !_platformHandledNotificationTapIds.contains(tap.taskId) &&
+        request is DownloadRequest &&
+        request.notification != null;
   }
 
   Future<void> _actFromNotification(TransferNotificationTap tap) async {
@@ -332,6 +341,7 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   }
 
   void _markNotificationTapHandled(String taskId) {
+    _platformHandledNotificationTapIds.remove(taskId);
     _handledNotificationTapIds.add(taskId);
     if (_handledNotificationTapIds.length > 256) {
       _handledNotificationTapIds.remove(_handledNotificationTapIds.first);

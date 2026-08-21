@@ -325,14 +325,14 @@ packages:
       path: "../packages/transfer_manager_android"
       relative: true
     source: path
-    version: "2.1.0"
+    version: "2.1.1"
   transfer_manager_flutter:
     dependency: "direct main"
     description:
       path: "../packages/transfer_manager_flutter"
       relative: true
     source: path
-    version: "2.1.1"
+    version: "2.1.2"
   transfer_manager_ios:
     dependency: "direct overridden"
     description:
@@ -346,7 +346,7 @@ packages:
       path: "../packages/transfer_manager_platform_interface"
       relative: true
     source: path
-    version: "2.1.0"
+    version: "2.1.1"
   typed_data:
     dependency: transitive
     description:

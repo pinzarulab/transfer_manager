@@ -25,14 +25,22 @@ final class PlatformTransferDestination {
 }
 
 final class PlatformNotificationTap {
-  const PlatformNotificationTap({required this.taskId, this.destination});
+  const PlatformNotificationTap({
+    required this.taskId,
+    this.destination,
+    this.actionHandled = false,
+  });
 
   final String taskId;
   final PlatformTransferDestination? destination;
 
+  /// Whether native code already performed the requested artifact action.
+  final bool actionHandled;
+
   factory PlatformNotificationTap.fromMap(Map<Object?, Object?> map) =>
       PlatformNotificationTap(
         taskId: map['taskId']! as String,
+        actionHandled: map['actionHandled'] as bool? ?? false,
         destination: map['destination'] is Map<Object?, Object?>
             ? PlatformTransferDestination.fromMap(
                 map['destination']! as Map<Object?, Object?>,
@@ -93,6 +101,7 @@ final class PlatformDownloadRequest {
     this.networkPolicy = 'any',
     this.notificationTitle = 'Downloading file',
     this.showNotification = true,
+    this.notificationOpenType = 'open',
     this.maxAttempts = 5,
   });
 
@@ -106,6 +115,9 @@ final class PlatformDownloadRequest {
 
   /// Whether native code should show a completion notification.
   final bool showNotification;
+
+  /// Native action requested when completion notification is tapped.
+  final String notificationOpenType;
   final int maxAttempts;
 
   Map<String, Object?> toMap() => {
@@ -116,6 +128,7 @@ final class PlatformDownloadRequest {
     'networkPolicy': networkPolicy,
     'notificationTitle': notificationTitle,
     'showNotification': showNotification,
+    'notificationOpenType': notificationOpenType,
     'maxAttempts': maxAttempts,
   };
 }

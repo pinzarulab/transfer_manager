@@ -8,7 +8,7 @@ fallbacks, completion notifications, notification taps, and artifact actions.
 
 ```yaml
 dependencies:
-  transfer_manager_flutter: ^2.1.0
+  transfer_manager_flutter: ^2.1.2
 ```
 
 ## Setup
@@ -54,6 +54,9 @@ final task = await transfers.download(
 `NotificationOpenType.open` performs `task.open()` after the user taps the
 notification. Use `NotificationOpenType.reveal` to perform `task.reveal()`.
 No tap listener or initial-tap handling is needed.
+
+Android performs this action directly from the notification, without waiting
+for Flutter application startup. iOS performs it after the UI resumes.
 Set `showNotification: false` to suppress the completion notification. Android
 may still show required foreground progress while a background download runs.
 

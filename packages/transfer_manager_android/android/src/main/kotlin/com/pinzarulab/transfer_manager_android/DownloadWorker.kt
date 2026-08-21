@@ -37,6 +37,7 @@ internal class DownloadWorker(
             ?: return failure("Missing destination path")
         val title = inputData.getString(KEY_NOTIFICATION_TITLE) ?: "Downloading file"
         val showNotification = inputData.getBoolean(KEY_SHOW_NOTIFICATION, true)
+        val notificationOpenType = inputData.getString(KEY_NOTIFICATION_OPEN_TYPE) ?: "open"
         val maxAttempts = inputData.getInt(KEY_MAX_ATTEMPTS, 5).coerceAtLeast(1)
         val publicFileName = publicDownloadFileName(destinationPath)
         if (publicFileName != null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -79,6 +80,7 @@ internal class DownloadWorker(
                 taskId,
                 title,
                 showNotification,
+                notificationOpenType,
             )
         } catch (error: IOException) {
             if (runAttemptCount + 1 < maxAttempts) {
@@ -101,6 +103,7 @@ internal class DownloadWorker(
         taskId: String,
         title: String,
         showNotification: Boolean,
+        notificationOpenType: String,
     ): Result {
         var offset = partial.takeIf(File::exists)?.length() ?: 0
         val metadata = DownloadMetadataStore(applicationContext)
@@ -199,6 +202,7 @@ internal class DownloadWorker(
                         taskId,
                         title,
                         checkNotNull(destination),
+                        notificationOpenType,
                     )
                 } else {
                     TransferFileNotifications.showCompleted(
@@ -207,6 +211,7 @@ internal class DownloadWorker(
                         title,
                         publicUri,
                         checkNotNull(publicFileName),
+                        notificationOpenType = notificationOpenType,
                     )
                 }
             }
@@ -371,6 +376,7 @@ internal class DownloadWorker(
         const val KEY_HEADERS_JSON = "headersJson"
         const val KEY_NOTIFICATION_TITLE = "notificationTitle"
         const val KEY_SHOW_NOTIFICATION = "showNotification"
+        const val KEY_NOTIFICATION_OPEN_TYPE = "notificationOpenType"
         const val KEY_MAX_ATTEMPTS = "maxAttempts"
         const val KEY_BYTES = "bytesTransferred"
         const val KEY_TOTAL = "totalBytes"

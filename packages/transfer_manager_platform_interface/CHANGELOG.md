@@ -1,3 +1,8 @@
+## 2.1.1
+
+- Added native notification action and handled-state fields for reliable
+  Android notification taps.
+
 ## 2.1.0
 
 - Added the native completion-notification visibility preference to download

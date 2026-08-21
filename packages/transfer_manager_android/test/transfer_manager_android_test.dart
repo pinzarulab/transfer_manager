@@ -51,6 +51,7 @@ void main() {
       expect(arguments['taskId'], 'task-1');
       expect(arguments['networkPolicy'], 'unmetered');
       expect(arguments['showNotification'], isFalse);
+      expect(arguments['notificationOpenType'], 'reveal');
       return 'work-1';
     });
     final platform = TransferManagerAndroid(methodChannel: channel);
@@ -65,6 +66,7 @@ void main() {
         ),
         networkPolicy: 'unmetered',
         showNotification: false,
+        notificationOpenType: 'reveal',
       ),
     );
 
@@ -142,6 +144,7 @@ void main() {
         const MethodCall('notificationTapped', {
           'taskId': 'task-live',
           'destination': {'kind': 'downloads', 'value': 'live.pdf'},
+          'actionHandled': true,
         }),
       ),
       response.complete,
@@ -151,6 +154,7 @@ void main() {
     final acknowledged = channel.codec.decodeEnvelope((await response.future)!);
     expect(tap.taskId, 'task-live');
     expect(tap.destination?.value, 'live.pdf');
+    expect(tap.actionHandled, isTrue);
     expect(acknowledged, isTrue);
   });
 

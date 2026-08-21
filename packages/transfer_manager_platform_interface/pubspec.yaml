@@ -1,6 +1,6 @@
 name: transfer_manager_platform_interface
 description: Platform contract for native transfer_manager implementations.
-version: 2.1.0
+version: 2.1.1
 homepage: https://github.com/pinzarulab/transfer_manager
 repository: https://github.com/pinzarulab/transfer_manager
 issue_tracker: https://github.com/pinzarulab/transfer_manager/issues

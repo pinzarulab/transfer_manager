@@ -87,7 +87,7 @@ packages:
       path: "../../transfer_manager_platform_interface"
       relative: true
     source: path
-    version: "2.1.0"
+    version: "2.1.1"
   typed_data:
     dependency: transitive
     description:

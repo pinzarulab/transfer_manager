@@ -1,3 +1,9 @@
+## 2.1.1
+
+- Perform notification `open` and `reveal` actions directly in Android.
+- Keep Dart tap delivery informational after native action succeeds.
+- Remove Flutter lifecycle timing dependency from completion notification taps.
+
 ## 2.1.0
 
 - Added completion-notification suppression for downloads.

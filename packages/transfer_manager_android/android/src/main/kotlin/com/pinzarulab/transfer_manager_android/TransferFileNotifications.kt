@@ -25,6 +25,7 @@ internal object TransferFileNotifications {
         taskId: String,
         title: String,
         file: File,
+        notificationOpenType: String = "open",
     ) = showCompleted(
         context,
         taskId,
@@ -33,6 +34,7 @@ internal object TransferFileNotifications {
         file.name,
         "file",
         file.path,
+        notificationOpenType,
     )
 
     fun showCompleted(
@@ -43,6 +45,7 @@ internal object TransferFileNotifications {
         fileName: String,
         destinationKind: String = "downloads",
         destinationValue: String = fileName,
+        notificationOpenType: String = "open",
     ) {
         val notifications = NotificationManagerCompat.from(context)
         if (!notifications.areNotificationsEnabled()) return
@@ -56,6 +59,10 @@ internal object TransferFileNotifications {
             putExtra(
                 TransferNotificationTapReceiver.EXTRA_DESTINATION_VALUE,
                 destinationValue,
+            )
+            putExtra(
+                TransferNotificationTapReceiver.EXTRA_OPEN_TYPE,
+                notificationOpenType,
             )
         }
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or

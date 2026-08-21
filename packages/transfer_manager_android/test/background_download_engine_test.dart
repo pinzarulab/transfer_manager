@@ -15,6 +15,10 @@ void main() {
         source: Uri.parse('https://example.com/file'),
         destination: const TransferDestination.file('/downloads/file'),
         networkPolicy: NetworkPolicy.unmetered,
+        notification: const TransferNotification(
+          title: 'Complete',
+          openType: NotificationOpenType.reveal,
+        ),
       ),
       state: TransferState.running,
     );
@@ -41,7 +45,8 @@ void main() {
 
     expect(record.nativeTaskId, 'work-1');
     expect(platform.request!.networkPolicy, 'unmetered');
-    expect(platform.request!.showNotification, isFalse);
+    expect(platform.request!.showNotification, isTrue);
+    expect(platform.request!.notificationOpenType, 'reveal');
     expect(progress, contains(10));
   });
 }
