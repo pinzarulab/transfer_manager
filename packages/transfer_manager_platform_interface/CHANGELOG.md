@@ -1,3 +1,8 @@
+## 2.1.0
+
+- Added the native completion-notification visibility preference to download
+  requests.
+
 ## 2.0.1
 
 - Synchronized the federated package release with the 2.0.1 implementations.

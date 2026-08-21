@@ -41,6 +41,7 @@ void main() {
 
     expect(record.nativeTaskId, 'work-1');
     expect(platform.request!.networkPolicy, 'unmetered');
+    expect(platform.request!.showNotification, isFalse);
     expect(progress, contains(10));
   });
 }

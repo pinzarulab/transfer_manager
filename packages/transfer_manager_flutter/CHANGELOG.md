@@ -1,3 +1,10 @@
+## 2.1.0
+
+- Added `showNotification` and `openFromNotification` download options.
+- Automatically opens or reveals completed files after notification taps.
+- Automatically recovers cold-start notification taps; normal file-opening
+  flows no longer need tap listeners or initial-tap handling.
+
 ## 2.0.2
 
 - Buffer notification taps while the app is paused and deliver them after the

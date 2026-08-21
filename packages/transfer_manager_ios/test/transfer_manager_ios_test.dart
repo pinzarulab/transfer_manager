@@ -49,6 +49,7 @@ void main() {
           kind: 'file',
           value: '/files/file',
         ),
+        showNotification: false,
       ),
     );
     await platform.enqueueUpload(
@@ -67,6 +68,10 @@ void main() {
       ((calls.first.arguments! as Map<Object?, Object?>)['destination']!
           as Map<Object?, Object?>)['value'],
       '/files/file',
+    );
+    expect(
+      (calls.first.arguments! as Map<Object?, Object?>)['showNotification'],
+      isFalse,
     );
   });
 

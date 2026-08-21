@@ -1,3 +1,9 @@
+## 2.1.0
+
+- Added `NotificationOpenType.open` and `NotificationOpenType.reveal`, matching
+  `TransferTask.open()` and `TransferTask.reveal()`.
+- Persisted notification-tap behavior with transfer requests.
+
 ## 2.0.1
 
 - Expanded Dart API documentation for destinations, requests, retries,

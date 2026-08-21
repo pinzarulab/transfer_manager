@@ -62,8 +62,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
   final List<StreamSubscription<TransferEvent>> _subscriptions = [];
 
   FlutterTransferManager? _manager;
-  StreamSubscription<TransferNotificationTap>?
-  _notificationResponseSubscription;
   bool _initializing = true;
   bool _requestingNotifications = false;
   bool _notificationsEnabled = false;
@@ -99,13 +97,6 @@ class _DownloadsPageState extends State<DownloadsPage> {
         _notificationsEnabled = notificationsEnabled;
         _initializing = false;
       });
-      _notificationResponseSubscription = manager.notificationTaps.listen(
-        _openFromNotification,
-      );
-      final initialResponse = await manager.takeInitialNotificationTap();
-      if (initialResponse != null) {
-        _openFromNotification(initialResponse);
-      }
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -161,12 +152,8 @@ class _DownloadsPageState extends State<DownloadsPage> {
           'bytes': option.bytes.toString(),
         }),
         fileName: option.fileName,
-        notification: TransferNotification(
-          title: option.title,
-          showProgress: true,
-          allowPause: true,
-          allowCancel: true,
-        ),
+        showNotification: true,
+        openFromNotification: NotificationOpenType.reveal,
       );
       _attachTask(task, option: option, destinationPath: visibleDestination);
       if (mounted) {
@@ -201,26 +188,11 @@ class _DownloadsPageState extends State<DownloadsPage> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _openFromNotification(TransferNotificationTap response) {
-    final task = _manager?.task(response.taskId);
-    if (!mounted || task == null) return;
-    unawaited(_openTaskFromNotification(task));
-  }
-
-  Future<void> _openTaskFromNotification(TransferTask task) async {
-    try {
-      await task.open();
-    } catch (error) {
-      if (mounted) _showMessage('Could not open download: $error');
-    }
-  }
-
   @override
   void dispose() {
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }
-    unawaited(_notificationResponseSubscription?.cancel());
     final manager = _manager;
     if (manager != null) unawaited(manager.close());
     super.dispose();

@@ -50,6 +50,7 @@ void main() {
       final arguments = call.arguments! as Map<Object?, Object?>;
       expect(arguments['taskId'], 'task-1');
       expect(arguments['networkPolicy'], 'unmetered');
+      expect(arguments['showNotification'], isFalse);
       return 'work-1';
     });
     final platform = TransferManagerAndroid(methodChannel: channel);
@@ -63,6 +64,7 @@ void main() {
           value: '/files/file',
         ),
         networkPolicy: 'unmetered',
+        showNotification: false,
       ),
     );
 

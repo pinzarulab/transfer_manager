@@ -36,6 +36,7 @@ internal class DownloadWorker(
         val destinationPath = inputData.getString(KEY_DESTINATION)
             ?: return failure("Missing destination path")
         val title = inputData.getString(KEY_NOTIFICATION_TITLE) ?: "Downloading file"
+        val showNotification = inputData.getBoolean(KEY_SHOW_NOTIFICATION, true)
         val maxAttempts = inputData.getInt(KEY_MAX_ATTEMPTS, 5).coerceAtLeast(1)
         val publicFileName = publicDownloadFileName(destinationPath)
         if (publicFileName != null && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -77,6 +78,7 @@ internal class DownloadWorker(
                 partial,
                 taskId,
                 title,
+                showNotification,
             )
         } catch (error: IOException) {
             if (runAttemptCount + 1 < maxAttempts) {
@@ -98,6 +100,7 @@ internal class DownloadWorker(
         partial: File,
         taskId: String,
         title: String,
+        showNotification: Boolean,
     ): Result {
         var offset = partial.takeIf(File::exists)?.length() ?: 0
         val metadata = DownloadMetadataStore(applicationContext)
@@ -189,21 +192,23 @@ internal class DownloadWorker(
                 publishToDownloads(partial, publicFileName)
             }
             metadata.clear(taskId)
-            if (publicUri == null) {
-                TransferFileNotifications.showCompleted(
-                    applicationContext,
-                    taskId,
-                    title,
-                    checkNotNull(destination),
-                )
-            } else {
-                TransferFileNotifications.showCompleted(
-                    applicationContext,
-                    taskId,
-                    title,
-                    publicUri,
-                    checkNotNull(publicFileName),
-                )
+            if (showNotification) {
+                if (publicUri == null) {
+                    TransferFileNotifications.showCompleted(
+                        applicationContext,
+                        taskId,
+                        title,
+                        checkNotNull(destination),
+                    )
+                } else {
+                    TransferFileNotifications.showCompleted(
+                        applicationContext,
+                        taskId,
+                        title,
+                        publicUri,
+                        checkNotNull(publicFileName),
+                    )
+                }
             }
             val output = progressData(transferred, total)
             return Result.success(output)
@@ -365,6 +370,7 @@ internal class DownloadWorker(
         const val KEY_DESTINATION = "destination"
         const val KEY_HEADERS_JSON = "headersJson"
         const val KEY_NOTIFICATION_TITLE = "notificationTitle"
+        const val KEY_SHOW_NOTIFICATION = "showNotification"
         const val KEY_MAX_ATTEMPTS = "maxAttempts"
         const val KEY_BYTES = "bytesTransferred"
         const val KEY_TOTAL = "totalBytes"

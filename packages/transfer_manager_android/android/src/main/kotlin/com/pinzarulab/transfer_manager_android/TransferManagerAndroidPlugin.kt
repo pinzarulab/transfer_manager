@@ -280,6 +280,8 @@ class TransferManagerAndroidPlugin :
             DownloadWorker.KEY_HEADERS_JSON to JSONObject(headers).toString(),
             DownloadWorker.KEY_NOTIFICATION_TITLE to
                 (call.argument<String>("notificationTitle") ?: "Downloading file"),
+            DownloadWorker.KEY_SHOW_NOTIFICATION to
+                (call.argument<Boolean>("showNotification") ?: true),
             DownloadWorker.KEY_MAX_ATTEMPTS to
                 (call.argument<Int>("maxAttempts") ?: 5).coerceAtLeast(1),
         )

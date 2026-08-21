@@ -1,3 +1,8 @@
+## 2.1.0
+
+- Added completion-notification suppression for downloads.
+- Persisted notification visibility across background URLSession retries.
+
 ## 2.0.2
 
 - Deliver live notification taps synchronously to the Flutter facade before

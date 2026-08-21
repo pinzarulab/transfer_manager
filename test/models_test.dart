@@ -40,4 +40,21 @@ void main() {
     expect(restored.value, 'report 1.pdf');
     expect(restored.fileName, 'report 1.pdf');
   });
+
+  test('notification open behavior round trips JSON', () {
+    const notification = TransferNotification(
+      title: 'Done',
+      openType: NotificationOpenType.reveal,
+    );
+
+    final restored = TransferNotification.fromJson(notification.toJson());
+
+    expect(restored.openType, NotificationOpenType.reveal);
+  });
+
+  test('old notifications default to opening the artifact', () {
+    final restored = TransferNotification.fromJson(const {'title': 'Done'});
+
+    expect(restored.openType, NotificationOpenType.open);
+  });
 }

@@ -8,7 +8,7 @@ fallbacks, completion notifications, notification taps, and artifact actions.
 
 ```yaml
 dependencies:
-  transfer_manager_flutter: ^2.0.1
+  transfer_manager_flutter: ^2.1.0
 ```
 
 ## Setup
@@ -17,8 +17,6 @@ Initialize Flutter before creating the manager. Keep one manager for the app
 lifetime.
 
 ```dart
-import 'dart:async';
-
 import 'package:flutter/widgets.dart';
 import 'package:transfer_manager_flutter/transfer_manager_flutter.dart';
 
@@ -48,30 +46,26 @@ if (!await transfers.notificationsEnabled()) {
 final task = await transfers.download(
   Uri.parse('https://example.com/report.pdf'),
   fileName: 'report.pdf',
-  notification: const TransferNotification(
-    title: 'Report downloaded',
-    showProgress: true,
-    allowPause: true,
-    allowCancel: true,
-  ),
+  showNotification: true,
+  openFromNotification: NotificationOpenType.open,
 );
 ```
+
+`NotificationOpenType.open` performs `task.open()` after the user taps the
+notification. Use `NotificationOpenType.reveal` to perform `task.reveal()`.
+No tap listener or initial-tap handling is needed.
+Set `showNotification: false` to suppress the completion notification. Android
+may still show required foreground progress while a background download runs.
 
 Default downloads use Android MediaStore Downloads and iOS Documents exposed
 through Files. Use `TransferDestination.file(path)` for an explicit path.
 
-Listen for notification taps while the app is running and recover the tap that
-launched a stopped app:
+Notification taps remain available for optional app-specific handling:
 
 ```dart
 final tapSubscription = transfers.notificationTaps.listen((tap) {
-  unawaited(transfers.task(tap.taskId)?.open());
+  appRouter.go('/downloads/${tap.taskId}');
 });
-
-final initialTap = await transfers.takeInitialNotificationTap();
-if (initialTap != null) {
-  await transfers.task(initialTap.taskId)?.open();
-}
 ```
 
 Completed download tasks can also be opened or revealed directly:

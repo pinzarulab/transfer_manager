@@ -54,6 +54,7 @@ final class AndroidBackgroundDownloadEngine implements TransferEngine {
           headers: request.headers,
           networkPolicy: (request.networkPolicy ?? NetworkPolicy.any).name,
           notificationTitle: request.notification?.title ?? 'Downloading file',
+          showNotification: request.notification != null,
           maxAttempts: (request.retryPolicy ?? const RetryPolicy.exponential())
               .maxAttempts,
         ),

@@ -20,6 +20,7 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     _platformTapSubscription = _platform.notificationTaps.listen(
       _receiveNotificationTap,
     );
+    _initialNotificationTapFuture = _loadInitialNotificationTap();
   }
 
   final TransferManager manager;
@@ -28,9 +29,11 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   _notificationTapController;
   late final StreamSubscription<PlatformNotificationTap>
   _platformTapSubscription;
+  late final Future<TransferNotificationTap?> _initialNotificationTapFuture;
   final List<TransferNotificationTap> _pendingNotificationTaps = [];
   Completer<void>? _resumedCompleter;
   bool _notificationTapFlushScheduled = false;
+  bool _initialNotificationTapTaken = false;
   bool _closed = false;
 
   static Future<FlutterTransferManager> create({
@@ -93,14 +96,18 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     return FlutterTransferManager._(manager, platform);
   }
 
+  /// Notification taps for custom in-app routing.
   Stream<TransferNotificationTap> get notificationTaps =>
       _notificationTapController.stream;
 
+  /// Returns the cold-start tap once, when manual handling is needed.
   Future<TransferNotificationTap?> takeInitialNotificationTap() async {
-    final tap = await _platform.takeInitialNotificationTap();
+    if (_initialNotificationTapTaken) return null;
+    _initialNotificationTapTaken = true;
+    final tap = await _initialNotificationTapFuture;
     if (tap == null) return null;
     await _waitUntilUiReady();
-    return _mapTap(tap);
+    return tap;
   }
 
   Future<bool> notificationsEnabled() => _platform.notificationsEnabled();
@@ -116,10 +123,17 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   Future<List<TransferTask>> tasks({Set<TransferState>? states}) =>
       manager.tasks(states: states);
 
+  /// Queues a download with optional completion notification behavior.
+  ///
+  /// [showNotification] suppresses completion alerts when false.
+  /// [openFromNotification] applies to the generated notification. If
+  /// [notification] is supplied, its own [TransferNotification.openType] wins.
   Future<TransferTask> download(
     Uri source, {
     required String fileName,
     TransferDestination? destination,
+    bool showNotification = true,
+    NotificationOpenType openFromNotification = NotificationOpenType.open,
     TransferNotification? notification,
     Map<String, String> headers = const {},
     NetworkPolicy? networkPolicy,
@@ -133,7 +147,13 @@ final class FlutterTransferManager with WidgetsBindingObserver {
       networkPolicy: networkPolicy,
       retryPolicy: retryPolicy,
       existingFilePolicy: existingFilePolicy,
-      notification: notification ?? TransferNotification(title: fileName),
+      notification: showNotification
+          ? notification ??
+                TransferNotification(
+                  title: fileName,
+                  openType: openFromNotification,
+                )
+          : null,
     ),
   );
 
@@ -162,6 +182,15 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     _scheduleNotificationTapFlush();
   }
 
+  Future<TransferNotificationTap?> _loadInitialNotificationTap() async {
+    final platformTap = await _platform.takeInitialNotificationTap();
+    if (platformTap == null || _closed) return null;
+    final tap = _mapTap(platformTap);
+    _pendingNotificationTaps.add(tap);
+    _scheduleNotificationTapFlush();
+    return tap;
+  }
+
   Future<void> _waitUntilUiReady() async {
     if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       _resumedCompleter ??= Completer<void>();
@@ -176,7 +205,8 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     if (_closed ||
         _notificationTapFlushScheduled ||
         _pendingNotificationTaps.isEmpty ||
-        !_notificationTapController.hasListener ||
+        (!_notificationTapController.hasListener &&
+            !_pendingNotificationTaps.any(_hasAutomaticAction)) ||
         WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
       return;
     }
@@ -184,17 +214,54 @@ final class FlutterTransferManager with WidgetsBindingObserver {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _notificationTapFlushScheduled = false;
       if (_closed ||
-          !_notificationTapController.hasListener ||
           WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
         return;
       }
       final taps = List<TransferNotificationTap>.of(_pendingNotificationTaps);
       _pendingNotificationTaps.clear();
       for (final tap in taps) {
-        _notificationTapController.add(tap);
+        final hasAutomaticAction = _hasAutomaticAction(tap);
+        if (_notificationTapController.hasListener) {
+          _notificationTapController.add(tap);
+        } else if (!hasAutomaticAction) {
+          _pendingNotificationTaps.add(tap);
+        }
+        if (hasAutomaticAction) unawaited(_actFromNotification(tap));
       }
     });
     WidgetsBinding.instance.scheduleFrame();
+  }
+
+  bool _hasAutomaticAction(TransferNotificationTap tap) {
+    final request = manager.task(tap.taskId)?.request;
+    return request is DownloadRequest && request.notification != null;
+  }
+
+  Future<void> _actFromNotification(TransferNotificationTap tap) async {
+    try {
+      final task = manager.task(tap.taskId);
+      final request = task?.request;
+      if (task == null || request is! DownloadRequest) return;
+      switch (request.notification?.openType) {
+        case NotificationOpenType.open:
+          await task.open();
+          return;
+        case NotificationOpenType.reveal:
+          await task.reveal();
+          return;
+        case null:
+          return;
+      }
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'transfer_manager_flutter',
+          context: ErrorDescription('handling a download notification tap'),
+        ),
+      );
+    }
   }
 
   TransferNotificationTap _mapTap(PlatformNotificationTap tap) {

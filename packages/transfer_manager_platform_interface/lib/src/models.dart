@@ -92,6 +92,7 @@ final class PlatformDownloadRequest {
     this.headers = const {},
     this.networkPolicy = 'any',
     this.notificationTitle = 'Downloading file',
+    this.showNotification = true,
     this.maxAttempts = 5,
   });
 
@@ -102,6 +103,9 @@ final class PlatformDownloadRequest {
   final Map<String, String> headers;
   final String networkPolicy;
   final String notificationTitle;
+
+  /// Whether native code should show a completion notification.
+  final bool showNotification;
   final int maxAttempts;
 
   Map<String, Object?> toMap() => {
@@ -111,6 +115,7 @@ final class PlatformDownloadRequest {
     'headers': headers,
     'networkPolicy': networkPolicy,
     'notificationTitle': notificationTitle,
+    'showNotification': showNotification,
     'maxAttempts': maxAttempts,
   };
 }

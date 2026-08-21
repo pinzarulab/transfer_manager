@@ -48,6 +48,7 @@ final class IosBackgroundDownloadEngine implements TransferEngine {
           headers: request.headers,
           networkPolicy: (request.networkPolicy ?? NetworkPolicy.any).name,
           notificationTitle: request.notification?.title ?? 'Download complete',
+          showNotification: request.notification != null,
           maxAttempts: (request.retryPolicy ?? const RetryPolicy.exponential())
               .maxAttempts,
         ),

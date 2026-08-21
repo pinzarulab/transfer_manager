@@ -61,6 +61,20 @@ void main() {
     expect(request.toMap()['maxAttempts'], 3);
   });
 
+  test('encodes completion notification preference', () {
+    final request = PlatformDownloadRequest(
+      taskId: 'download-1',
+      source: Uri.parse('https://example.com/file'),
+      destination: const PlatformTransferDestination(
+        kind: 'downloads',
+        value: 'file.bin',
+      ),
+      showNotification: false,
+    );
+
+    expect(request.toMap()['showNotification'], isFalse);
+  });
+
   test('encodes TUS upload requests', () {
     final request = PlatformTusUploadRequest(
       taskId: 'tus-1',

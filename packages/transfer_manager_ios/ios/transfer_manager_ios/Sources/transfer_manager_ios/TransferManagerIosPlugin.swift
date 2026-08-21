@@ -10,6 +10,7 @@ private struct TransferDescriptor: Codable {
     let sourcePath: String?
     let bodyPath: String?
     let notificationTitle: String
+    let showNotification: Bool?
     let maxAttempts: Int
     let attempt: Int
 }
@@ -229,6 +230,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             sourcePath: nil,
             bodyPath: nil,
             notificationTitle: title,
+            showNotification: arguments["showNotification"] as? Bool ?? true,
             maxAttempts: max(arguments["maxAttempts"] as? Int ?? 5, 1),
             attempt: 0
         )
@@ -364,6 +366,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                     sourcePath: source.path,
                     bodyPath: body.path,
                     notificationTitle: title,
+                    showNotification: true,
                     maxAttempts: max(arguments["maxAttempts"] as? Int ?? 5, 1),
                     attempt: 0
                 )
@@ -639,6 +642,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             sourcePath: value.sourcePath,
             bodyPath: value.bodyPath,
             notificationTitle: value.notificationTitle,
+            showNotification: value.showNotification,
             maxAttempts: value.maxAttempts,
             attempt: value.attempt + 1
         )
@@ -705,7 +709,9 @@ extension TransferManagerIosPlugin: URLSessionDownloadDelegate, URLSessionTaskDe
             }
             try FileManager.default.moveItem(at: location, to: destination)
             update(value.taskId, task: downloadTask, state: "succeeded")
-            notify(value)
+            if value.showNotification != false {
+                notify(value)
+            }
         } catch {
             update(
                 value.taskId,

@@ -231,6 +231,15 @@ final class TransferConfiguration {
   final bool removeManagedSourceOnCancellation;
 }
 
+/// Action performed after a user taps a completed-download notification.
+enum NotificationOpenType {
+  /// Performs the same action as `TransferTask.open()`.
+  open,
+
+  /// Performs the same action as `TransferTask.reveal()`.
+  reveal,
+}
+
 /// Controls native progress and completion notifications for one transfer.
 final class TransferNotification {
   /// Creates notification preferences for a transfer.
@@ -239,6 +248,7 @@ final class TransferNotification {
     this.showProgress = true,
     this.allowPause = false,
     this.allowCancel = true,
+    this.openType = NotificationOpenType.open,
   });
 
   /// User-visible notification title.
@@ -253,12 +263,16 @@ final class TransferNotification {
   /// Whether a cancel action may be displayed.
   final bool allowCancel;
 
+  /// Action performed after the completion notification is tapped.
+  final NotificationOpenType openType;
+
   /// Encodes these preferences for durable storage.
   Map<String, Object?> toJson() => {
     'title': title,
     'showProgress': showProgress,
     'allowPause': allowPause,
     'allowCancel': allowCancel,
+    'openType': openType.name,
   };
 
   /// Decodes notification preferences from durable storage.
@@ -268,6 +282,9 @@ final class TransferNotification {
         showProgress: json['showProgress'] as bool? ?? true,
         allowPause: json['allowPause'] as bool? ?? false,
         allowCancel: json['allowCancel'] as bool? ?? true,
+        openType: NotificationOpenType.values.byName(
+          json['openType'] as String? ?? NotificationOpenType.open.name,
+        ),
       );
 }
 

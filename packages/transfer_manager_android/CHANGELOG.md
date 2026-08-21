@@ -1,3 +1,8 @@
+## 2.1.0
+
+- Added completion-notification suppression for downloads.
+- Forwarded the facade's simplified notification preferences to WorkManager.
+
 ## 2.0.2
 
 - Keep notification taps pending until Dart confirms live delivery.
