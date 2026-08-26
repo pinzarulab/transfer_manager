@@ -1,3 +1,11 @@
+## 2.2.0
+
+- Added ActivityKit progress for iOS 16.1 and newer.
+- Added direct pause/resume and cancel controls on iOS 17 and newer.
+- Added completed-transfer Open and Reveal deep links.
+- Added a standalone Swift support product and a complete four-preset Widget
+  Extension in the example app.
+
 ## 2.1.1
 
 - Keep notification taps pending until Dart acknowledges live delivery.

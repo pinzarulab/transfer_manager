@@ -8,7 +8,7 @@ fallbacks, completion notifications, notification taps, and artifact actions.
 
 ```yaml
 dependencies:
-  transfer_manager_flutter: ^2.1.2
+  transfer_manager_flutter: ^2.2.0
 ```
 
 ## Setup
@@ -50,6 +50,27 @@ final task = await transfers.download(
   openFromNotification: NotificationOpenType.open,
 );
 ```
+
+## iOS Live Activity
+
+After adding the Widget Extension described in the iOS package README, Live
+Activity progress is one option on a download:
+
+```dart
+final task = await transfers.download(
+  Uri.parse('https://example.com/large-file.zip'),
+  fileName: 'large-file.zip',
+  showNotification: true,
+  showLiveActivity: true,
+  liveActivityStyle: LiveActivityStyle.detailed,
+  allowPauseFromLiveActivity: true,
+  allowCancelFromLiveActivity: true,
+);
+```
+
+Available layouts are `system`, `compact`, `detailed`, and `prominent`.
+iOS 16.1+ shows progress. Direct Pause/Resume and Cancel controls require iOS
+17+. After a successful download, the controls become Open and Reveal.
 
 `NotificationOpenType.open` performs `task.open()` after the user taps the
 notification. Use `NotificationOpenType.reveal` to perform `task.reveal()`.

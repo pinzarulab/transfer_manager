@@ -41,6 +41,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       fileName: 'cloudflare-1mb.bin',
       bytes: 1000000,
       icon: Icons.description_outlined,
+      liveActivityStyle: LiveActivityStyle.compact,
     ),
     DownloadOption(
       title: 'Medium sample',
@@ -48,6 +49,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       fileName: 'cloudflare-10mb.bin',
       bytes: 10000000,
       icon: Icons.archive_outlined,
+      liveActivityStyle: LiveActivityStyle.detailed,
     ),
     DownloadOption(
       title: 'Large sample',
@@ -55,6 +57,7 @@ class _DownloadsPageState extends State<DownloadsPage> {
       fileName: 'cloudflare-50mb.bin',
       bytes: 50000000,
       icon: Icons.movie_outlined,
+      liveActivityStyle: LiveActivityStyle.prominent,
     ),
   ];
 
@@ -154,6 +157,8 @@ class _DownloadsPageState extends State<DownloadsPage> {
         fileName: option.fileName,
         showNotification: true,
         openFromNotification: NotificationOpenType.reveal,
+        showLiveActivity: Platform.isIOS,
+        liveActivityStyle: option.liveActivityStyle,
       );
       _attachTask(task, option: option, destinationPath: visibleDestination);
       if (mounted) {
@@ -220,7 +225,8 @@ class _DownloadsPageState extends State<DownloadsPage> {
                     Text(
                       'These downloads use WorkManager on Android and a '
                       'background URLSession on iOS. You can leave the app '
-                      'while a transfer is running.',
+                      'while a transfer is running. iOS also shows progress '
+                      'as a Live Activity.',
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     const SizedBox(height: 16),
@@ -285,6 +291,7 @@ class DownloadOption {
     required this.fileName,
     required this.bytes,
     required this.icon,
+    required this.liveActivityStyle,
   });
 
   final String title;
@@ -292,6 +299,7 @@ class DownloadOption {
   final String fileName;
   final int bytes;
   final IconData icon;
+  final LiveActivityStyle liveActivityStyle;
 }
 
 class DownloadTaskView {

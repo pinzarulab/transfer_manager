@@ -1,3 +1,7 @@
+## 2.2.0
+
+- Added Live Activity capability reporting and native download configuration.
+
 ## 2.1.1
 
 - Added native notification action and handled-state fields for reliable

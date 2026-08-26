@@ -57,6 +57,14 @@
 - Zero-configuration `transfer_manager_flutter` facade
 - Simplified Android/iOS example
 
+## 2.2 — iOS Live Activities
+
+- Lock Screen and Dynamic Island download progress
+- System, compact, detailed, and prominent visual presets
+- Native pause/resume and cancel controls
+- Completed-transfer open and reveal actions
+- Ready-to-run Widget Extension example
+
 ## Future mobile expansion
 
 - Native iOS background TUS orchestration
@@ -65,8 +73,8 @@
 
 ## Later
 
-- S3 multipart, task groups, bandwidth limits, desktop adapters, reduced web
-  support, and optional Live Activities
+- S3 multipart, task groups, bandwidth limits, desktop adapters, and reduced
+  web support
 
 The mobile durability acceptance bar includes multi-gigabyte streaming, atomic
 completion, restart and connectivity recovery, token renewal, chunk-level

@@ -65,6 +65,7 @@ final class PlatformTransferCapabilities {
     this.notificationTaps = false,
     this.openArtifacts = false,
     this.revealArtifacts = false,
+    this.liveActivities = false,
   });
 
   final bool backgroundDownloads;
@@ -76,6 +77,7 @@ final class PlatformTransferCapabilities {
   final bool notificationTaps;
   final bool openArtifacts;
   final bool revealArtifacts;
+  final bool liveActivities;
 
   factory PlatformTransferCapabilities.fromMap(Map<Object?, Object?> map) =>
       PlatformTransferCapabilities(
@@ -89,6 +91,7 @@ final class PlatformTransferCapabilities {
         notificationTaps: map['notificationTaps'] as bool? ?? false,
         openArtifacts: map['openArtifacts'] as bool? ?? false,
         revealArtifacts: map['revealArtifacts'] as bool? ?? false,
+        liveActivities: map['liveActivities'] as bool? ?? false,
       );
 }
 
@@ -102,6 +105,11 @@ final class PlatformDownloadRequest {
     this.notificationTitle = 'Downloading file',
     this.showNotification = true,
     this.notificationOpenType = 'open',
+    this.showProgress = true,
+    this.allowPause = false,
+    this.allowCancel = true,
+    this.showLiveActivity = false,
+    this.liveActivityStyle = 'system',
     this.maxAttempts = 5,
   });
 
@@ -118,6 +126,11 @@ final class PlatformDownloadRequest {
 
   /// Native action requested when completion notification is tapped.
   final String notificationOpenType;
+  final bool showProgress;
+  final bool allowPause;
+  final bool allowCancel;
+  final bool showLiveActivity;
+  final String liveActivityStyle;
   final int maxAttempts;
 
   Map<String, Object?> toMap() => {
@@ -129,6 +142,11 @@ final class PlatformDownloadRequest {
     'notificationTitle': notificationTitle,
     'showNotification': showNotification,
     'notificationOpenType': notificationOpenType,
+    'showProgress': showProgress,
+    'allowPause': allowPause,
+    'allowCancel': allowCancel,
+    'showLiveActivity': showLiveActivity,
+    'liveActivityStyle': liveActivityStyle,
     'maxAttempts': maxAttempts,
   };
 }

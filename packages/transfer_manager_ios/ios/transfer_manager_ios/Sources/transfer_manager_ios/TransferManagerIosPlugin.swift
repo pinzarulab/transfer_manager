@@ -3,6 +3,10 @@ import Foundation
 import UIKit
 import UserNotifications
 
+#if SWIFT_PACKAGE
+import TransferManagerLiveActivitySupport
+#endif
+
 private struct TransferDescriptor: Codable {
     let taskId: String
     let kind: String
@@ -11,6 +15,12 @@ private struct TransferDescriptor: Codable {
     let bodyPath: String?
     let notificationTitle: String
     let showNotification: Bool?
+    let notificationOpenType: String?
+    let showProgress: Bool?
+    let allowPause: Bool?
+    let allowCancel: Bool?
+    let showLiveActivity: Bool?
+    let liveActivityStyle: String?
     let maxAttempts: Int
     let attempt: Int
 }
@@ -22,6 +32,7 @@ private struct TransferSnapshot: Codable {
     var totalBytes: Int64?
     var error: String?
     var nativeTaskId: Int
+    var destinationPath: String? = nil
 
     var dictionary: [String: Any?] {
         [
@@ -62,7 +73,8 @@ private final class TransferRegistry {
     }
 }
 
-public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
+public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStreamHandler,
+    FlutterSceneLifeCycleDelegate {
     private static let methodChannelName = "pinzarulab.com/transfer_manager_ios/methods"
     private static let eventChannelName = "pinzarulab.com/transfer_manager_ios/events"
     private static let sensitiveHeaders = Set([
@@ -81,6 +93,9 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
     private var methodChannel: FlutterMethodChannel?
     private var pendingNotificationResponse: [String: Any]?
     private var documentInteractionController: UIDocumentInteractionController?
+    private let liveActivities = TransferLiveActivityCoordinator()
+    private var liveActivityActionObserver: NSObjectProtocol?
+    private var pendingArtifactAction: (taskId: String, reveal: Bool)?
 
     private lazy var sessionIdentifier: String = {
         let bundle = Bundle.main.bundleIdentifier ?? "com.pinzarulab.transfer_manager"
@@ -102,6 +117,12 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         )
     }()
 
+    deinit {
+        if let liveActivityActionObserver {
+            NotificationCenter.default.removeObserver(liveActivityActionObserver)
+        }
+    }
+
     public static func register(with registrar: FlutterPluginRegistrar) {
         let instance = TransferManagerIosPlugin()
         let methods = FlutterMethodChannel(
@@ -115,6 +136,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         instance.methodChannel = methods
         registrar.addMethodCallDelegate(instance, channel: methods)
         registrar.addApplicationDelegate(instance)
+        registrar.addSceneDelegate(instance)
         events.setStreamHandler(instance)
         let notifications = UNUserNotificationCenter.current()
         if notifications.delegate !== instance {
@@ -122,6 +144,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             notifications.delegate = instance
         }
         _ = instance.session
+        instance.installLiveActivityActions()
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -137,6 +160,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                 "notificationTaps": true,
                 "openArtifacts": true,
                 "revealArtifacts": true,
+                "liveActivities": liveActivities.isAvailable,
             ])
         case "notificationsEnabled":
             UNUserNotificationCenter.current().getNotificationSettings { settings in
@@ -206,6 +230,54 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         return true
     }
 
+    public func application(
+        _ application: UIApplication,
+        open url: URL,
+        options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+    ) -> Bool {
+        handleArtifactURL(url)
+    }
+
+    public func scene(
+        _ scene: UIScene,
+        openURLContexts URLContexts: Set<UIOpenURLContext>
+    ) -> Bool {
+        URLContexts.contains { handleArtifactURL($0.url) }
+    }
+
+    public func scene(
+        _ scene: UIScene,
+        willConnectTo session: UISceneSession,
+        options connectionOptions: UIScene.ConnectionOptions?
+    ) -> Bool {
+        connectionOptions?.urlContexts.contains {
+            handleArtifactURL($0.url)
+        } ?? false
+    }
+
+    public func sceneDidBecomeActive(_ scene: UIScene) {
+        presentPendingArtifactAction()
+    }
+
+    private func handleArtifactURL(_ url: URL) -> Bool {
+        guard url.scheme == "transfer-manager",
+              let action = url.host,
+              ["open", "reveal"].contains(action),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let taskId = components.queryItems?.first(where: {
+                  $0.name == "taskId"
+              })?.value,
+              !taskId.isEmpty
+        else { return false }
+        pendingArtifactAction = (taskId: taskId, reveal: action == "reveal")
+        presentPendingArtifactAction()
+        return true
+    }
+
+    public func applicationDidBecomeActive(_ application: UIApplication) {
+        presentPendingArtifactAction()
+    }
+
     private func enqueueDownload(
         _ arguments: [String: Any],
         result: @escaping FlutterResult
@@ -231,12 +303,28 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             bodyPath: nil,
             notificationTitle: title,
             showNotification: arguments["showNotification"] as? Bool ?? true,
+            notificationOpenType: arguments["notificationOpenType"] as? String,
+            showProgress: arguments["showProgress"] as? Bool,
+            allowPause: arguments["allowPause"] as? Bool,
+            allowCancel: arguments["allowCancel"] as? Bool,
+            showLiveActivity: arguments["showLiveActivity"] as? Bool,
+            liveActivityStyle: arguments["liveActivityStyle"] as? String,
             maxAttempts: max(arguments["maxAttempts"] as? Int ?? 5, 1),
             attempt: 0
         )
         let task = session.downloadTask(with: request)
         task.taskDescription = encode(descriptor)
         store(taskId, task: task, state: "enqueued", bytes: 0, total: nil)
+        if descriptor.showLiveActivity == true {
+            liveActivities.start(
+                taskId: taskId,
+                title: title,
+                fileName: URL(fileURLWithPath: destination).lastPathComponent,
+                style: descriptor.liveActivityStyle ?? "system",
+                allowPause: descriptor.allowPause ?? false,
+                allowCancel: descriptor.allowCancel ?? true
+            )
+        }
         task.resume()
         result(String(task.taskIdentifier))
     }
@@ -272,12 +360,21 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         result: @escaping FlutterResult
     ) {
         guard let url = destinationURL(arguments),
-              FileManager.default.fileExists(atPath: url.path),
-              let presenter = topViewController()
+              FileManager.default.fileExists(atPath: url.path)
         else {
             result(error("artifact_missing", "Downloaded file is unavailable"))
             return
         }
+        guard presentArtifact(url, reveal: reveal) else {
+            result(error("artifact_open_failed", "No application can open this file"))
+            return
+        }
+        result(nil)
+    }
+
+    @discardableResult
+    private func presentArtifact(_ url: URL, reveal: Bool) -> Bool {
+        guard let presenter = topViewController() else { return false }
         let controller = UIDocumentInteractionController(url: url)
         controller.delegate = self
         documentInteractionController = controller
@@ -288,11 +385,24 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                 animated: true
               )
             : controller.presentPreview(animated: true)
-        if presented {
-            result(nil)
-        } else {
+        if !presented {
             documentInteractionController = nil
-            result(error("artifact_open_failed", "No application can open this file"))
+        }
+        return presented
+    }
+
+    private func presentPendingArtifactAction() {
+        guard UIApplication.shared.applicationState == .active,
+              let pending = pendingArtifactAction,
+              let path = registry.get(pending.taskId)?.destinationPath,
+              FileManager.default.fileExists(atPath: path)
+        else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            guard self.presentArtifact(
+                URL(fileURLWithPath: path),
+                reveal: pending.reveal
+            ) else { return }
+            self.pendingArtifactAction = nil
         }
     }
 
@@ -367,6 +477,12 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                     bodyPath: body.path,
                     notificationTitle: title,
                     showNotification: true,
+                    notificationOpenType: nil,
+                    showProgress: nil,
+                    allowPause: nil,
+                    allowCancel: nil,
+                    showLiveActivity: false,
+                    liveActivityStyle: nil,
                     maxAttempts: max(arguments["maxAttempts"] as? Int ?? 5, 1),
                     attempt: 0
                 )
@@ -417,6 +533,50 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                 self.update(taskId, task: task, state: "cancelled")
             }
             DispatchQueue.main.async { result(nil) }
+        }
+    }
+
+    private func installLiveActivityActions() {
+        liveActivityActionObserver = NotificationCenter.default.addObserver(
+            forName: TransferLiveActivityActionStore.notification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.consumeLiveActivityActions()
+        }
+        consumeLiveActivityActions()
+    }
+
+    private func consumeLiveActivityActions() {
+        for action in TransferLiveActivityActionStore.takeAll() {
+            switch action.action {
+            case "togglePause":
+                controlFromLiveActivity(taskId: action.taskId, togglePause: true)
+            case "cancel":
+                controlFromLiveActivity(taskId: action.taskId, togglePause: false)
+            default:
+                continue
+            }
+        }
+    }
+
+    private func controlFromLiveActivity(taskId: String, togglePause: Bool) {
+        session.getAllTasks { tasks in
+            guard let task = tasks.first(where: {
+                self.descriptor($0)?.taskId == taskId
+            }) else { return }
+            if togglePause {
+                if task.state == .suspended {
+                    task.resume()
+                    self.update(taskId, task: task, state: "running")
+                } else {
+                    task.suspend()
+                    self.update(taskId, task: task, state: "paused")
+                }
+            } else {
+                task.cancel()
+                self.update(taskId, task: task, state: "cancelled")
+            }
         }
     }
 
@@ -554,8 +714,16 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             bytesTransferred: bytes,
             totalBytes: total,
             error: nil,
-            nativeTaskId: task.taskIdentifier
+            nativeTaskId: task.taskIdentifier,
+            destinationPath: descriptor(task)?.destinationPath
         ))
+        updateLiveActivity(
+            task: task,
+            taskId: taskId,
+            state: state,
+            bytes: bytes,
+            total: total
+        )
     }
 
     private func update(
@@ -572,7 +740,8 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                 : task.countOfBytesSent,
             totalBytes: nil,
             error: nil,
-            nativeTaskId: task.taskIdentifier
+            nativeTaskId: task.taskIdentifier,
+            destinationPath: descriptor(task)?.destinationPath
         )
         snapshot.state = state
         snapshot.bytesTransferred = task.countOfBytesReceived > 0
@@ -583,7 +752,31 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             : task.countOfBytesExpectedToSend
         snapshot.totalBytes = expected > 0 ? expected : snapshot.totalBytes
         snapshot.error = error
+        snapshot.destinationPath = snapshot.destinationPath ?? descriptor(task)?.destinationPath
         saveAndEmit(snapshot)
+        updateLiveActivity(
+            task: task,
+            taskId: taskId,
+            state: state,
+            bytes: snapshot.bytesTransferred,
+            total: snapshot.totalBytes
+        )
+    }
+
+    private func updateLiveActivity(
+        task: URLSessionTask,
+        taskId: String,
+        state: String,
+        bytes: Int64,
+        total: Int64?
+    ) {
+        guard descriptor(task)?.showLiveActivity == true else { return }
+        liveActivities.update(
+            taskId: taskId,
+            state: state,
+            bytesTransferred: bytes,
+            totalBytes: total
+        )
     }
 
     private func saveAndEmit(_ snapshot: TransferSnapshot) {
@@ -643,6 +836,12 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
             bodyPath: value.bodyPath,
             notificationTitle: value.notificationTitle,
             showNotification: value.showNotification,
+            notificationOpenType: value.notificationOpenType,
+            showProgress: value.showProgress,
+            allowPause: value.allowPause,
+            allowCancel: value.allowCancel,
+            showLiveActivity: value.showLiveActivity,
+            liveActivityStyle: value.liveActivityStyle,
             maxAttempts: value.maxAttempts,
             attempt: value.attempt + 1
         )

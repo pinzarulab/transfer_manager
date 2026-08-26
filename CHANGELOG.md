@@ -1,3 +1,10 @@
+## 2.2.0
+
+- Added durable iOS Live Activity preferences to transfer notifications.
+- Added `system`, `compact`, `detailed`, and `prominent` visual presets.
+- Added native pause/resume, cancel, open, and reveal Live Activity actions.
+- Added the complete iOS Widget Extension to the Flutter example.
+
 ## 2.1.0
 
 - Added `NotificationOpenType.open` and `NotificationOpenType.reveal`, matching

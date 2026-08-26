@@ -26,6 +26,7 @@ void main() {
     expect(capabilities.backgroundTusUploads, isFalse);
     expect(capabilities.pauseResume, isFalse);
     expect(capabilities.notifications, isTrue);
+    expect(capabilities.liveActivities, isFalse);
   });
 
   test('decodes task progress and unknown states', () {
@@ -73,10 +74,16 @@ void main() {
       ),
       showNotification: false,
       notificationOpenType: 'reveal',
+      showLiveActivity: true,
+      liveActivityStyle: 'detailed',
+      allowPause: true,
     );
 
     expect(request.toMap()['showNotification'], isFalse);
     expect(request.toMap()['notificationOpenType'], 'reveal');
+    expect(request.toMap()['showLiveActivity'], isTrue);
+    expect(request.toMap()['liveActivityStyle'], 'detailed');
+    expect(request.toMap()['allowPause'], isTrue);
   });
 
   test('encodes TUS upload requests', () {

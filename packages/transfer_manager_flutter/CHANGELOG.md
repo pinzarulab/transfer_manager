@@ -1,3 +1,8 @@
+## 2.2.0
+
+- Added `showLiveActivity` and `liveActivityStyle` download options.
+- Added simple Live Activity pause and cancel control preferences.
+
 ## 2.1.2
 
 - Avoid repeating notification actions already completed directly by Android.

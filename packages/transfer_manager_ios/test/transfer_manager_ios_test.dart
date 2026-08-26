@@ -22,6 +22,7 @@ void main() {
         'pauseResume': true,
         'notifications': true,
         'notificationCancellation': false,
+        'liveActivities': true,
       };
     });
 
@@ -33,6 +34,7 @@ void main() {
     expect(capabilities.backgroundUploads, isTrue);
     expect(capabilities.backgroundTusUploads, isFalse);
     expect(capabilities.pauseResume, isTrue);
+    expect(capabilities.liveActivities, isTrue);
   });
 
   test('encodes download and upload requests', () async {
@@ -52,6 +54,8 @@ void main() {
           value: '/files/file',
         ),
         showNotification: false,
+        showLiveActivity: true,
+        liveActivityStyle: 'prominent',
       ),
     );
     await platform.enqueueUpload(
@@ -74,6 +78,14 @@ void main() {
     expect(
       (calls.first.arguments! as Map<Object?, Object?>)['showNotification'],
       isFalse,
+    );
+    expect(
+      (calls.first.arguments! as Map<Object?, Object?>)['showLiveActivity'],
+      isTrue,
+    );
+    expect(
+      (calls.first.arguments! as Map<Object?, Object?>)['liveActivityStyle'],
+      'prominent',
     );
   });
 

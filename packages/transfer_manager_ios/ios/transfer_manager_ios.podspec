@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'transfer_manager_ios'
-  s.version          = '2.1.1'
+  s.version          = '2.2.0'
   s.summary          = 'iOS background URLSession implementation for transfer_manager.'
   s.description      = <<-DESC
 Durable background downloads and uploads for the transfer_manager Flutter package.
@@ -9,9 +9,8 @@ Durable background downloads and uploads for the transfer_manager Flutter packag
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'Pinzaru Lab' => 'opensource@pinzarulab.com' }
   s.source           = { :path => '.' }
-  s.source_files     = 'transfer_manager_ios/Sources/transfer_manager_ios/**/*'
   s.platform         = :ios, '13.0'
-  s.dependency 'Flutter'
+  s.default_subspec  = 'Plugin'
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386'
@@ -22,4 +21,14 @@ Durable background downloads and uploads for the transfer_manager Flutter packag
       'transfer_manager_ios/Sources/transfer_manager_ios/PrivacyInfo.xcprivacy'
     ]
   }
+
+  s.subspec 'LiveActivitySupport' do |ss|
+    ss.source_files = 'transfer_manager_ios/Sources/TransferManagerLiveActivitySupport/**/*'
+  end
+
+  s.subspec 'Plugin' do |ss|
+    ss.source_files = 'transfer_manager_ios/Sources/transfer_manager_ios/**/*'
+    ss.dependency 'Flutter'
+    ss.dependency 'transfer_manager_ios/LiveActivitySupport'
+  end
 end

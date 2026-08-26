@@ -15,6 +15,8 @@ It demonstrates:
 - progress, pause, resume, retry, and cancel controls
 - Android 13+ and iOS notification permission requests
 - Android progress notifications
+- iOS Live Activity progress on the Lock Screen and Dynamic Island
+- compact, detailed, and prominent Live Activity examples
 - Android and iOS completion notifications, including while the app is visible
 - one-call `FlutterTransferManager.create()` setup
 - notification-tap delivery plus `task.open()` and `task.reveal()`
@@ -32,6 +34,11 @@ Completion-notification taps open the downloaded file. On iOS, files are
 stored in the app's Documents directory and are exposed in the Files app under
 On My iPhone (or On My iPad) > Transfer Manager; tapping a completion
 notification opens the downloaded document preview.
+
+The iOS project includes the required Widget Extension. On iOS 17+, active
+downloads offer Pause/Resume and Cancel directly from the Live Activity. A
+completed download offers Open and Reveal. Test on a physical iPhone for the
+full Lock Screen and Dynamic Island experience.
 
 The public sample payloads come from Cloudflare's documented speed-test
 download endpoint and contain generated binary data.

@@ -1,6 +1,6 @@
 name: transfer_manager
 description: A protocol-aware, crash-safe transfer engine for Dart and Flutter.
-version: 2.1.0
+version: 2.2.0
 homepage: https://github.com/pinzarulab/transfer_manager
 
 environment:

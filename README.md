@@ -35,6 +35,8 @@ remain future milestones.
 - Android low-storage preflight protection and device durability tests
 - iOS background URLSession downloads and file-backed multipart uploads
 - iOS relaunch reconciliation, pause/resume, retries, and notifications
+- iOS Live Activity progress with four visual presets
+- Native Live Activity pause/resume, cancel, open, and reveal actions
 - Platform-neutral file and Downloads destinations
 - Platform-neutral warm/cold notification taps
 - `TransferTask.open()` and `TransferTask.reveal()`
@@ -56,6 +58,9 @@ if (!await transfers.notificationsEnabled()) {
 final task = await transfers.download(
   Uri.parse('https://example.com/report.pdf'),
   fileName: 'report.pdf',
+  // iOS only; add the Widget Extension described below first.
+  showLiveActivity: true,
+  liveActivityStyle: LiveActivityStyle.detailed,
 );
 
 transfers.notificationTaps.listen((tap) {
@@ -139,6 +144,12 @@ call `task.open()` or `task.reveal()`.
 
 iOS does not advertise native background TUS. Keep `TusTransferEngine()` after
 the iOS native engines to use resumable TUS while the application is active.
+
+iOS Live Activities require a host Widget Extension. The complete example is
+already wired under `example/ios/TransferManagerLiveActivity`. See the
+[`transfer_manager_ios` setup](packages/transfer_manager_ios/README.md#live-activities)
+before enabling `showLiveActivity`. Progress requires iOS 16.1; direct
+Pause/Resume and Cancel buttons require iOS 17.
 
 ## Pure Dart quick start
 

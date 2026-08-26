@@ -45,16 +45,22 @@ void main() {
     const notification = TransferNotification(
       title: 'Done',
       openType: NotificationOpenType.reveal,
+      showLiveActivity: true,
+      liveActivityStyle: LiveActivityStyle.prominent,
     );
 
     final restored = TransferNotification.fromJson(notification.toJson());
 
     expect(restored.openType, NotificationOpenType.reveal);
+    expect(restored.showLiveActivity, isTrue);
+    expect(restored.liveActivityStyle, LiveActivityStyle.prominent);
   });
 
   test('old notifications default to opening the artifact', () {
     final restored = TransferNotification.fromJson(const {'title': 'Done'});
 
     expect(restored.openType, NotificationOpenType.open);
+    expect(restored.showLiveActivity, isFalse);
+    expect(restored.liveActivityStyle, LiveActivityStyle.system);
   });
 }

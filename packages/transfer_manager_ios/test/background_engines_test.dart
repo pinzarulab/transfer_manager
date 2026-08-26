@@ -13,6 +13,11 @@ void main() {
       request: DownloadRequest(
         source: Uri.parse('https://example.com/file'),
         destination: const TransferDestination.file('/files/file'),
+        notification: const TransferNotification(
+          title: 'File',
+          showLiveActivity: true,
+          liveActivityStyle: LiveActivityStyle.detailed,
+        ),
       ),
       state: TransferState.running,
     );
@@ -38,7 +43,9 @@ void main() {
 
     expect(record.nativeTaskId, 'ios-download');
     expect(platform.download?.destination.value, '/files/file');
-    expect(platform.download?.showNotification, isFalse);
+    expect(platform.download?.showNotification, isTrue);
+    expect(platform.download?.showLiveActivity, isTrue);
+    expect(platform.download?.liveActivityStyle, 'detailed');
   });
 
   test('bridges a multipart upload through background URLSession', () async {

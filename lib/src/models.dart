@@ -240,6 +240,24 @@ enum NotificationOpenType {
   reveal,
 }
 
+/// Visual preset used by an iOS Live Activity.
+///
+/// The system still controls the Lock Screen and Dynamic Island presentation;
+/// this value selects the package-provided layout inside those surfaces.
+enum LiveActivityStyle {
+  /// Native materials, restrained color, and standard information density.
+  system,
+
+  /// A small progress-first layout for short file names.
+  compact,
+
+  /// File name, byte counts, percentage, and the available actions.
+  detailed,
+
+  /// A stronger accent treatment with a large progress value.
+  prominent,
+}
+
 /// Controls native progress and completion notifications for one transfer.
 final class TransferNotification {
   /// Creates notification preferences for a transfer.
@@ -249,6 +267,8 @@ final class TransferNotification {
     this.allowPause = false,
     this.allowCancel = true,
     this.openType = NotificationOpenType.open,
+    this.showLiveActivity = false,
+    this.liveActivityStyle = LiveActivityStyle.system,
   });
 
   /// User-visible notification title.
@@ -266,6 +286,15 @@ final class TransferNotification {
   /// Action performed after the completion notification is tapped.
   final NotificationOpenType openType;
 
+  /// Whether iOS should display progress as a Live Activity.
+  ///
+  /// Requires iOS 16.1 or newer and a Live Activity Widget Extension in the
+  /// host application. Other platforms ignore this option.
+  final bool showLiveActivity;
+
+  /// Package-provided visual preset for the iOS Live Activity.
+  final LiveActivityStyle liveActivityStyle;
+
   /// Encodes these preferences for durable storage.
   Map<String, Object?> toJson() => {
     'title': title,
@@ -273,6 +302,8 @@ final class TransferNotification {
     'allowPause': allowPause,
     'allowCancel': allowCancel,
     'openType': openType.name,
+    'showLiveActivity': showLiveActivity,
+    'liveActivityStyle': liveActivityStyle.name,
   };
 
   /// Decodes notification preferences from durable storage.
@@ -284,6 +315,10 @@ final class TransferNotification {
         allowCancel: json['allowCancel'] as bool? ?? true,
         openType: NotificationOpenType.values.byName(
           json['openType'] as String? ?? NotificationOpenType.open.name,
+        ),
+        showLiveActivity: json['showLiveActivity'] as bool? ?? false,
+        liveActivityStyle: LiveActivityStyle.values.byName(
+          json['liveActivityStyle'] as String? ?? LiveActivityStyle.system.name,
         ),
       );
 }

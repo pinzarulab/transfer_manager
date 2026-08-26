@@ -132,12 +132,18 @@ final class FlutterTransferManager with WidgetsBindingObserver {
   /// [showNotification] suppresses completion alerts when false.
   /// [openFromNotification] applies to the generated notification. If
   /// [notification] is supplied, its own [TransferNotification.openType] wins.
+  /// [showLiveActivity] and [liveActivityStyle] configure iOS 16.1+ after the
+  /// host app adds the package's Live Activity Widget Extension.
   Future<TransferTask> download(
     Uri source, {
     required String fileName,
     TransferDestination? destination,
     bool showNotification = true,
     NotificationOpenType openFromNotification = NotificationOpenType.open,
+    bool showLiveActivity = false,
+    LiveActivityStyle liveActivityStyle = LiveActivityStyle.system,
+    bool allowPauseFromLiveActivity = true,
+    bool allowCancelFromLiveActivity = true,
     TransferNotification? notification,
     Map<String, String> headers = const {},
     NetworkPolicy? networkPolicy,
@@ -156,6 +162,10 @@ final class FlutterTransferManager with WidgetsBindingObserver {
                 TransferNotification(
                   title: fileName,
                   openType: openFromNotification,
+                  allowPause: allowPauseFromLiveActivity,
+                  allowCancel: allowCancelFromLiveActivity,
+                  showLiveActivity: showLiveActivity,
+                  liveActivityStyle: liveActivityStyle,
                 )
           : null,
     ),

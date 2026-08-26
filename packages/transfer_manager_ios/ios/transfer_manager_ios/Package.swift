@@ -11,6 +11,10 @@ let package = Package(
         .library(
             name: "transfer-manager-ios",
             targets: ["transfer_manager_ios"]
+        ),
+        .library(
+            name: "transfer-manager-live-activity-support",
+            targets: ["TransferManagerLiveActivitySupport"]
         )
     ],
     dependencies: [
@@ -20,6 +24,7 @@ let package = Package(
         .target(
             name: "transfer_manager_ios",
             dependencies: [
+                "TransferManagerLiveActivitySupport",
                 .product(
                     name: "FlutterFramework",
                     package: "FlutterFramework"
@@ -28,6 +33,9 @@ let package = Package(
             resources: [
                 .process("PrivacyInfo.xcprivacy")
             ]
+        ),
+        .target(
+            name: "TransferManagerLiveActivitySupport"
         )
     ]
 )
