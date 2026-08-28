@@ -8,7 +8,7 @@ fallbacks, completion notifications, notification taps, and artifact actions.
 
 ```yaml
 dependencies:
-  transfer_manager_flutter: ^2.2.0
+  transfer_manager_flutter: ^2.2.1
 ```
 
 ## Setup

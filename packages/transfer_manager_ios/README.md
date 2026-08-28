@@ -15,7 +15,7 @@ package to add an app-extension target automatically.
 Requirements:
 
 - iOS 16.1+ for progress on the Lock Screen and Dynamic Island.
-- iOS 17+ for direct Pause/Resume and Cancel controls.
+- iOS 17+ for reliable direct Pause/Resume, Cancel, Open, and Reveal controls.
 - Xcode 15+ for the interactive Widget Extension.
 
 The complete extension is
@@ -65,10 +65,12 @@ It includes `system`, `compact`, `detailed`, and `prominent` presets.
    ),
    ```
 
-The native `LiveActivityIntent` controls the background `URLSession` directly;
-it does not wait for Dart or require a running Flutter UI. Open and Reveal
-foreground the application through the `transfer-manager` URL scheme, then
-present the downloaded file natively.
+Native `LiveActivityIntent` actions control the background `URLSession`
+directly; they do not wait for Dart or require a running Flutter UI. On iOS
+17+, Open and Reveal persist their action, foreground the application, wait
+until its native UI is ready, then present the downloaded file. Open uses a
+full-screen Quick Look preview; Reveal uses iOS document options. On iOS
+16.1–16.x, they use the `transfer-manager` custom-URL fallback.
 
 Active transfers show Pause/Resume and Cancel. Successful transfers replace
 those controls with Open and Reveal. iOS may coalesce local progress updates

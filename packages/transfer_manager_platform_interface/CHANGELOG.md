@@ -1,3 +1,7 @@
+## 2.2.1
+
+- Synchronized the federated package release with the 2.2.1 iOS fix.
+
 ## 2.2.0
 
 - Added Live Activity capability reporting and native download configuration.

@@ -1,3 +1,10 @@
+## 2.2.1
+
+- Made Open and Reveal durable across cold launches with an iOS 17
+  `LiveActivityIntent`, while retaining the iOS 16 custom-URL fallback.
+- Open completed files with full-screen Quick Look and present them as soon as
+  the foreground app window becomes available.
+
 ## 2.2.0
 
 - Added ActivityKit progress for iOS 16.1 and newer.

@@ -1,3 +1,10 @@
+## 2.2.1
+
+- Made completed Live Activity Open/Reveal actions survive cold app launches
+  and wait until native document presentation is ready.
+- Replaced iOS document-interaction previews with full-screen Quick Look to
+  avoid transient toolbar constraint warnings during Live Activity launches.
+
 ## 2.2.0
 
 - Added durable iOS Live Activity preferences to transfer notifications.

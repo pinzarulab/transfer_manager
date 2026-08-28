@@ -1,5 +1,6 @@
 import Flutter
 import Foundation
+import QuickLook
 import UIKit
 import UserNotifications
 
@@ -93,9 +94,12 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
     private var methodChannel: FlutterMethodChannel?
     private var pendingNotificationResponse: [String: Any]?
     private var documentInteractionController: UIDocumentInteractionController?
+    private var quickLookURL: URL?
     private let liveActivities = TransferLiveActivityCoordinator()
     private var liveActivityActionObserver: NSObjectProtocol?
+    private var applicationActiveObserver: NSObjectProtocol?
     private var pendingArtifactAction: (taskId: String, reveal: Bool)?
+    private var pendingArtifactPresentationWorkItem: DispatchWorkItem?
 
     private lazy var sessionIdentifier: String = {
         let bundle = Bundle.main.bundleIdentifier ?? "com.pinzarulab.transfer_manager"
@@ -121,6 +125,10 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         if let liveActivityActionObserver {
             NotificationCenter.default.removeObserver(liveActivityActionObserver)
         }
+        if let applicationActiveObserver {
+            NotificationCenter.default.removeObserver(applicationActiveObserver)
+        }
+        pendingArtifactPresentationWorkItem?.cancel()
     }
 
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -256,7 +264,7 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
     }
 
     public func sceneDidBecomeActive(_ scene: UIScene) {
-        presentPendingArtifactAction()
+        schedulePendingArtifactAction()
     }
 
     private func handleArtifactURL(_ url: URL) -> Bool {
@@ -270,12 +278,12 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
               !taskId.isEmpty
         else { return false }
         pendingArtifactAction = (taskId: taskId, reveal: action == "reveal")
-        presentPendingArtifactAction()
+        schedulePendingArtifactAction()
         return true
     }
 
     public func applicationDidBecomeActive(_ application: UIApplication) {
-        presentPendingArtifactAction()
+        schedulePendingArtifactAction()
     }
 
     private func enqueueDownload(
@@ -373,37 +381,70 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
     }
 
     @discardableResult
-    private func presentArtifact(_ url: URL, reveal: Bool) -> Bool {
+    private func presentArtifact(
+        _ url: URL,
+        reveal: Bool,
+        animated: Bool = true
+    ) -> Bool {
         guard let presenter = topViewController() else { return false }
+        if !reveal {
+            quickLookURL = url
+            let controller = QLPreviewController()
+            controller.dataSource = self
+            controller.delegate = self
+            controller.modalPresentationStyle = .fullScreen
+            presenter.present(controller, animated: animated)
+            return true
+        }
         let controller = UIDocumentInteractionController(url: url)
         controller.delegate = self
         documentInteractionController = controller
-        let presented = reveal
-            ? controller.presentOptionsMenu(
-                from: presenter.view.bounds,
-                in: presenter.view,
-                animated: true
-              )
-            : controller.presentPreview(animated: true)
+        let presented = controller.presentOptionsMenu(
+            from: presenter.view.bounds,
+            in: presenter.view,
+            animated: animated
+        )
         if !presented {
             documentInteractionController = nil
         }
         return presented
     }
 
-    private func presentPendingArtifactAction() {
-        guard UIApplication.shared.applicationState == .active,
-              let pending = pendingArtifactAction,
-              let path = registry.get(pending.taskId)?.destinationPath,
-              FileManager.default.fileExists(atPath: path)
-        else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            guard self.presentArtifact(
-                URL(fileURLWithPath: path),
-                reveal: pending.reveal
-            ) else { return }
-            self.pendingArtifactAction = nil
+    private func schedulePendingArtifactAction(
+        delay: TimeInterval = 0.05,
+        attemptsRemaining: Int = 20
+    ) {
+        guard pendingArtifactAction != nil else { return }
+        pendingArtifactPresentationWorkItem?.cancel()
+        let workItem = DispatchWorkItem { [weak self] in
+            self?.presentPendingArtifactAction(attemptsRemaining: attemptsRemaining)
         }
+        pendingArtifactPresentationWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    private func presentPendingArtifactAction(attemptsRemaining: Int) {
+        guard let pending = pendingArtifactAction else { return }
+        guard UIApplication.shared.applicationState == .active,
+              let path = registry.get(pending.taskId)?.destinationPath,
+              FileManager.default.fileExists(atPath: path),
+              topViewController()?.viewIfLoaded?.window != nil,
+              presentArtifact(
+                  URL(fileURLWithPath: path),
+                  reveal: pending.reveal,
+                  animated: false
+              )
+        else {
+            if attemptsRemaining > 0 {
+                schedulePendingArtifactAction(
+                    delay: 0.25,
+                    attemptsRemaining: attemptsRemaining - 1
+                )
+            }
+            return
+        }
+        pendingArtifactAction = nil
+        pendingArtifactPresentationWorkItem = nil
     }
 
     private func topViewController() -> UIViewController? {
@@ -544,6 +585,13 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
         ) { [weak self] _ in
             self?.consumeLiveActivityActions()
         }
+        applicationActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.schedulePendingArtifactAction()
+        }
         consumeLiveActivityActions()
     }
 
@@ -554,6 +602,12 @@ public final class TransferManagerIosPlugin: NSObject, FlutterPlugin, FlutterStr
                 controlFromLiveActivity(taskId: action.taskId, togglePause: true)
             case "cancel":
                 controlFromLiveActivity(taskId: action.taskId, togglePause: false)
+            case "open", "reveal":
+                pendingArtifactAction = (
+                    taskId: action.taskId,
+                    reveal: action.action == "reveal"
+                )
+                schedulePendingArtifactAction()
             default:
                 continue
             }
@@ -1064,15 +1118,29 @@ extension TransferManagerIosPlugin: UNUserNotificationCenterDelegate {
 }
 
 extension TransferManagerIosPlugin: UIDocumentInteractionControllerDelegate {
-    public func documentInteractionControllerViewControllerForPreview(
-        _ controller: UIDocumentInteractionController
-    ) -> UIViewController {
-        topViewController() ?? UIViewController()
-    }
-
-    public func documentInteractionControllerDidEndPreview(
+    public func documentInteractionControllerDidDismissOptionsMenu(
         _ controller: UIDocumentInteractionController
     ) {
         documentInteractionController = nil
+    }
+}
+
+extension TransferManagerIosPlugin: QLPreviewControllerDataSource,
+    QLPreviewControllerDelegate {
+    public func numberOfPreviewItems(
+        in controller: QLPreviewController
+    ) -> Int {
+        quickLookURL == nil ? 0 : 1
+    }
+
+    public func previewController(
+        _ controller: QLPreviewController,
+        previewItemAt index: Int
+    ) -> QLPreviewItem {
+        quickLookURL! as NSURL
+    }
+
+    public func previewControllerDidDismiss(_ controller: QLPreviewController) {
+        quickLookURL = nil
     }
 }

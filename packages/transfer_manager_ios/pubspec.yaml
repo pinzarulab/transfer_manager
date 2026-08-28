@@ -1,6 +1,6 @@
 name: transfer_manager_ios
 description: iOS background URLSession implementation for transfer_manager.
-version: 2.2.0
+version: 2.2.1
 homepage: https://github.com/pinzarulab/transfer_manager
 repository: https://github.com/pinzarulab/transfer_manager
 issue_tracker: https://github.com/pinzarulab/transfer_manager/issues
@@ -12,8 +12,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  transfer_manager: ^2.2.0
-  transfer_manager_platform_interface: ^2.2.0
+  transfer_manager: ^2.2.1
+  transfer_manager_platform_interface: ^2.2.1
 
 dev_dependencies:
   flutter_test:

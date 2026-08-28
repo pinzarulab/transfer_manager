@@ -178,11 +178,26 @@ private struct TransferActions: View {
     var body: some View {
         HStack(spacing: 8) {
             if context.state.state == "succeeded" {
-                Link(destination: actionURL("open", taskId: context.attributes.taskId)) {
-                    actionLabel("Open", symbol: "doc", showText: labels)
-                }
-                Link(destination: actionURL("reveal", taskId: context.attributes.taskId)) {
-                    actionLabel("Reveal", symbol: "folder", showText: labels)
+                if #available(iOSApplicationExtension 17.0, *) {
+                    Button(intent: TransferLiveActivityArtifactIntent(
+                        taskId: context.attributes.taskId,
+                        action: "open"
+                    )) {
+                        actionLabel("Open", symbol: "doc", showText: labels)
+                    }
+                    Button(intent: TransferLiveActivityArtifactIntent(
+                        taskId: context.attributes.taskId,
+                        action: "reveal"
+                    )) {
+                        actionLabel("Reveal", symbol: "folder", showText: labels)
+                    }
+                } else {
+                    Link(destination: actionURL("open", taskId: context.attributes.taskId)) {
+                        actionLabel("Open", symbol: "doc", showText: labels)
+                    }
+                    Link(destination: actionURL("reveal", taskId: context.attributes.taskId)) {
+                        actionLabel("Reveal", symbol: "folder", showText: labels)
+                    }
                 }
             } else if !["failed", "cancelled"].contains(context.state.state) {
                 if #available(iOSApplicationExtension 17.0, *) {

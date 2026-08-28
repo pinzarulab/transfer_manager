@@ -73,21 +73,21 @@ packages:
       path: "../../.."
       relative: true
     source: path
-    version: "2.2.0"
+    version: "2.2.1"
   transfer_manager_ios:
     dependency: "direct main"
     description:
       path: ".."
       relative: true
     source: path
-    version: "2.2.0"
+    version: "2.2.1"
   transfer_manager_platform_interface:
     dependency: "direct overridden"
     description:
       path: "../../transfer_manager_platform_interface"
       relative: true
     source: path
-    version: "2.2.0"
+    version: "2.2.1"
   typed_data:
     dependency: transitive
     description:

@@ -1,3 +1,8 @@
+## 2.2.1
+
+- Updated federated dependencies for reliable iOS Live Activity Open and
+  Reveal handling.
+
 ## 2.2.0
 
 - Added `showLiveActivity` and `liveActivityStyle` download options.

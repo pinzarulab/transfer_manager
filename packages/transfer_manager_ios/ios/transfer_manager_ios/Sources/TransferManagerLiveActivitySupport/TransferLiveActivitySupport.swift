@@ -147,4 +147,50 @@ public struct TransferLiveActivityControlIntent: LiveActivityIntent {
         return .result()
     }
 }
+
+/// Opens the host app and asks it to open or reveal a completed download.
+///
+/// Unlike a custom URL, this intent is persisted before the host app becomes
+/// active. The plugin can therefore finish the action after a cold launch.
+@available(iOS 17.0, *)
+public struct TransferLiveActivityArtifactIntent: LiveActivityIntent {
+    public static var title: LocalizedStringResource = "Open downloaded file"
+    public static var description = IntentDescription(
+        "Opens or reveals a completed background download."
+    )
+    public static var isDiscoverable: Bool = false
+    public static var openAppWhenRun: Bool = true
+
+    @Parameter(title: "Task identifier")
+    public var taskId: String
+
+    @Parameter(title: "Action")
+    public var action: String
+
+    public init() {
+        taskId = ""
+        action = ""
+    }
+
+    public init(taskId: String, action: String) {
+        self.taskId = taskId
+        self.action = action
+    }
+
+    public func perform() async throws -> some IntentResult {
+        guard !taskId.isEmpty,
+              ["open", "reveal"].contains(action)
+        else {
+            return .result()
+        }
+        TransferLiveActivityActionStore.append(
+            TransferLiveActivityAction(taskId: taskId, action: action)
+        )
+        NotificationCenter.default.post(
+            name: TransferLiveActivityActionStore.notification,
+            object: nil
+        )
+        return .result()
+    }
+}
 #endif
